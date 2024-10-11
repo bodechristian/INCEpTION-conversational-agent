@@ -154,6 +154,7 @@ def respond(context: str) -> void_INCEpTION_UI:
     Justify how well you answered the user query"""
     logging.debug("\ninside respond\nparameters:")
     logging.debug(f"{context=}\n")
+    return context
 
 
 if __name__ == "__main__":

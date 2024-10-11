@@ -57,6 +57,9 @@ def parse_dollars_lines(input_string: str) -> None:
                 cache_return_values[num] = return_value
             else:  # called function returns None
                 cache_return_values[num] = ""  # soll evtl fehler werfen?
+    # returns the last cache entry (atm assumed to be response)
+    if (el := cache_return_values[str(len(lines))]) != "":
+        return el
 
 
 if __name__ == "__main__":
