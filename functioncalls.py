@@ -72,7 +72,7 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
         The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton.
 
     Output:
-        The Republican ticket, businessman <politician>Donald Trump<politician> and Indiana governor <politician>Mike Pence<politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton<politician><politician>."""
+        The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
 
     chat_completion = client.chat.completions.create(
         messages=[
@@ -94,7 +94,7 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
 
     # extract tags
     resis = re.finditer(
-        r'\<([a-z A-Z]+)\>([a-z A-Z]+)\<\/([a-z A-Z]+)\>', return_result)
+        r'\<([a-z A-Z]+)\>([^<]*?)<\/([a-z A-Z]+)\>', return_result)
     cnt = 0
     ressi = []
     for m in resis:
@@ -157,7 +157,7 @@ def respond(context: str) -> void_INCEpTION_UI:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     classify_span("Annotate all politicians",
                   "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
                   )

@@ -65,6 +65,7 @@ $3 = classify_span(criteria_query="animal", scope=$1)
 $4 = get_layer(original_user_query="annotate every animal as such")
 $5 = get_feature(original_user_query="annotate every animal as such", layer=$4)
 $6 = annotate(layer=$4, feature=$5, scope=$1, annotation_positions=$3)
-$7 = respond()"""
+$7 = respond(context="")"""
+    logging.basicConfig(level=logging.DEBUG)
 
     parse_dollars_lines(TEST_INPUT)
