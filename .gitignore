@@ -4,3 +4,4 @@ data/
 temp_pys/
 venv/
 .venv/
+.env
