@@ -46,7 +46,7 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
     logging.debug("\ninside classify_span\nparameters:")
     logging.debug(f"{criteria_query=}\n{scope=}\n")
 
-    # TODO: get text from doc
+    # TODO: get text from doc/cas
     # faking it right now
     text = "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
 
@@ -93,20 +93,28 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
     logging.debug(f"\noutput:\n{return_result}")
 
     # extract tags
-    resis = re.finditer(
+    found_tags = re.finditer(
         r'\<([a-z A-Z]+)\>([^<]*?)<\/([a-z A-Z]+)\>', return_result)
+
+    # count of tag-characters to subtract to get correct index position in original text
+    # could alternatively be done in regex with lookarounds
     cnt = 0
-    ressi = []
-    for m in resis:
+    # the found spans in the following format
+    # [(categorization, (start, end)), ..]
+    found_spans = []
+    # iterate over the found tags and count their index position
+    for m in found_tags:
         true_start = m.start()-cnt
+        # add the number of tag-symbols and letters in tags
         cnt += 5 + len(m.group(1)) + len(m.group(3))
-        ressi.append(
+        found_spans.append(
             (m.group(1), (true_start, true_start + len(m.group(2)))))
-    logging.debug(ressi)
+    logging.debug(found_spans)
 
     # safety test, applying start:end onto the initial text
-    logging.debug([text[s:e] for _, (s, e) in ressi])
-    return ressi
+    found_words = [text[s:e] for _, (s, e) in found_spans]
+    logging.debug("Found these words in the text: %s", found_words)
+    return found_spans
 
 
 def highlight(layer: str, feature: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
