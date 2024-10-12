@@ -82,15 +82,7 @@ Please annotate every animal as such?
 """
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    # check if user prompt was given
-    if len(sys.argv) > 1:
-        USER_QUERY = sys.argv[1]
-
-    client = Groq(
-        api_key=GROQ_API_KEY,
-    )
+def call_llm_planner(client, user_query):
 
     chat_completion = client.chat.completions.create(
         messages=[
@@ -102,15 +94,28 @@ if __name__ == "__main__":
             },
             {
                 "role": "user",
-                "content": USER_QUERY,
+                "content": user_query,
             }
         ],
         model="llama3-70b-8192",
         temperature=0.0
     )
+    return chat_completion.choices[0].message.content
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    # check if user prompt was given
+    if len(sys.argv) > 1:
+        USER_QUERY = sys.argv[1]
+
+    client = Groq(
+        api_key=GROQ_API_KEY,
+    )
+
+    llm_response = call_llm_planner(client, USER_QUERY)
 
     # printing response
-    return_result = chat_completion.choices[0].message.content
     logging.debug("System prompt:\n%s", SYSTEM_PROMPT)
     logging.info("""
 --------------------------\n
@@ -119,9 +124,9 @@ user input:
 --------------------------\n
 output:
 %s
-\n--------------------------\n""", USER_QUERY, return_result)
+\n--------------------------\n""", USER_QUERY, llm_response)
     # call parser and functions
-    parsed_dollar_lines = parser.parse_dollars_lines(return_result)
+    parsed_dollar_lines = parser.parse_dollars_lines(llm_response)
     logging.info("""
 response: 
 --------------------------\n      

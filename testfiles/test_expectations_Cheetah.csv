@@ -1,0 +1,12 @@
+Prompt,Expected Result,Scope,Layer,Feature,Label?,Criteria?
+Identify every animal in every document,classify_span() -> highlight(),ad,Animal,species,any,
+How fast does a cheetah run?,search_context() -> respond(),cd,-,-,-,
+"How often is the word ""cheetah"" annotated?",check_annotations() -> respond(),cd,-,-,-,
+"Annotate every animal as either four-legged, two-legged or other.",classify_span() -> annotate(),cd,Animal,number of legs,any,
+Check if every annotation with the dog label also accurately describes the animal cheetah,check_annotations() -> respond(),cd,-,-,-,
+Tell me a joke,respond(),-,-,-,-,
+What kind of animal is the cheetah?,search_context() -> respond(),cd,-,-,-,
+Annotate every animal as such,classify_span() -> annotate(),cd,Animal,species,-,
+Annotate every mention of cheetah,classify_span() -> annotate(),cd,Animal,species,any/cheetah,
+Annotate every mention of cheetah as 'cat',classify_span() -> annotate(),cd,Animal,species,cat,
+Summarize the text,summarize_document(),cd,-,-,-,

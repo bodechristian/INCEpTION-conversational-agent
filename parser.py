@@ -19,6 +19,47 @@ valid_functions = {
 VALID_FUNCTIONS_STR = "|".join(valid_functions.keys())
 
 
+def analyze_functions(input_string: str):
+    regexpr = fr"""\$(\d+)\s*=\s*({
+        VALID_FUNCTIONS_STR})\((\w+=(?:".*"|\$\d+)(?:,\s*\w+=(?:"\w+"|\$\d+))*)?\)"""
+
+    lines = input_string.splitlines()
+    functions = []
+    for line in lines:
+        # each line has to match the regex
+        if (the_match := re.match(regexpr, line)):
+            # extract the name of the function and its parameters from the regex
+            # as well as the number of the line (used for cache)
+            num, function_to_call, parameters = the_match.groups()
+            functions.append((num, function_to_call, parameters))
+    return functions
+
+
+def call_functions(functions):
+    cache_return_values = dict()
+    for num, function_to_call, parameters in functions:
+        # analyze the parameters and read them from the cache if nessecary
+        json_kwargs = {}
+        if parameters:
+            parameters = [el.strip() for el in parameters.split(",")]
+            for p in parameters:
+                kw, val = p.split("=")
+                if val.startswith("$"):
+                    json_kwargs[kw] = cache_return_values[val[1:]]
+                else:
+                    json_kwargs[kw] = val.strip('"')
+        # call the actual function
+        return_value = valid_functions[function_to_call](**json_kwargs)
+        # save return value in cache under the respective line number
+        if return_value:
+            cache_return_values[num] = return_value
+        else:  # called function returns None
+            cache_return_values[num] = ""  # soll evtl fehler werfen?
+    # returns the last cache entry (atm assumed to be response)
+    if (el := cache_return_values[str(len(functions))]) != "":
+        return el
+
+
 def parse_dollars_lines(input_string: str) -> None:
     """Analyzes and executes functions from a specific syntax.
     e.g
@@ -29,37 +70,9 @@ def parse_dollars_lines(input_string: str) -> None:
     $5 = annotate(layer=$3, feature=$4, scope=$1, annotation_positions=$2)
     $6 = respond(context="")"""
 
-    cache_return_values = dict()
-    regexpr = fr"""\$(\d+)\s*=\s*({
-        VALID_FUNCTIONS_STR})\((\w+=(?:".*"|\$\d+)(?:,\s*\w+=(?:"\w+"|\$\d+))*)?\)"""
-
-    lines = input_string.splitlines()
-    for line in lines:
-        # each line has to match the regex
-        if (the_match := re.match(regexpr, line)):
-            # extract the name of the function and its parameters from the regex
-            # as well as the number of the line (used for cache)
-            num, function_to_call, parameters = the_match.groups()
-            # analyze the parameters and read them from the cache if nessecary
-            json_kwargs = {}
-            if parameters:
-                parameters = [el.strip() for el in parameters.split(",")]
-                for p in parameters:
-                    kw, val = p.split("=")
-                    if val.startswith("$"):
-                        json_kwargs[kw] = cache_return_values[val[1:]]
-                    else:
-                        json_kwargs[kw] = val.strip('"')
-            # call the actual function
-            return_value = valid_functions[function_to_call](**json_kwargs)
-            # save return value in cache under the respective line number
-            if return_value:
-                cache_return_values[num] = return_value
-            else:  # called function returns None
-                cache_return_values[num] = ""  # soll evtl fehler werfen?
-    # returns the last cache entry (atm assumed to be response)
-    if (el := cache_return_values[str(len(lines))]) != "":
-        return el
+    functions = analyze_functions(input_string)
+    last_output = call_functions(functions)
+    return last_output
 
 
 if __name__ == "__main__":
