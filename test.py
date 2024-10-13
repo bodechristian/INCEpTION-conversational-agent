@@ -26,6 +26,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_expected_functions(self):
+        # the models and files to test the planner on
+        # Groq website says 30 requests per minute is the ratelimit
+        # but it seems to be 10????
         models = ["llama3-70b-8192"]
         files = ["test_expectations_Cheetah.csv",
                  "test_expectations_Politician.csv"]
@@ -36,18 +39,24 @@ class TestParser(unittest.TestCase):
 
     def helper_test_planner(self, file, model):
         logger.info("testing %s with %s", file, model)
+        # open file
         with open(join(getcwd(), "testfiles", file), newline="") as f:
             reader = csv.reader(f)
             next(reader)  # skip header
             correct_results = 0
             for i, row in enumerate(reader):
+                # extract columns from csv
                 prompt, expected_results, scope, layer, feature, label, criteria = row
+                expected_results = set(expected_results.split(","))
+                # prompt planner
                 llm_response = call_llm_planner(self.client, model, prompt)
+                # extract only the functions from the planner response
                 detected = set([func for _, func,
                                 _ in analyze_functions(llm_response)])
-                expected_results = set(expected_results.split(","))
+                # see if correct functions were called (order irrelevant)
                 correct_result = detected == expected_results
                 correct_results += correct_result
+                # logging
                 logger.debug("Analyzing prompt: %s", prompt)
                 logger.debug("Expected functioncalls: %s", expected_results)
                 logger.debug("Detected functioncalls: %s", detected)
