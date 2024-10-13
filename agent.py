@@ -104,7 +104,11 @@ def call_llm_planner(client, model, user_query):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("tests")
+    stdout = logging.StreamHandler(stream=sys.stdout)
+    stdout.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(stdout)
     # check if user prompt was given
     if len(sys.argv) > 1:
         USER_QUERY = sys.argv[1]
@@ -116,8 +120,8 @@ if __name__ == "__main__":
     llm_response = call_llm_planner(client, "llama3-70b-8192", USER_QUERY)
 
     # printing response
-    logging.debug("System prompt:\n%s", SYSTEM_PROMPT)
-    logging.info("""
+    logger.debug("System prompt:\n%s", SYSTEM_PROMPT)
+    logger.info("""
 --------------------------\n
 user input:
 %s
@@ -127,7 +131,7 @@ output:
 \n--------------------------\n""", USER_QUERY, llm_response)
     # call parser and functions
     parsed_dollar_lines = parser.parse_dollars_lines(llm_response)
-    logging.info("""
+    logger.info("""
 response: 
 --------------------------\n      
 %s
