@@ -82,7 +82,7 @@ Please annotate every animal as such?
 """
 
 
-def call_llm_planner(client, user_query):
+def call_llm_planner(client, model, user_query):
 
     chat_completion = client.chat.completions.create(
         messages=[
@@ -97,7 +97,7 @@ def call_llm_planner(client, user_query):
                 "content": user_query,
             }
         ],
-        model="llama3-70b-8192",
+        model=model,
         temperature=0.0
     )
     return chat_completion.choices[0].message.content
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         api_key=GROQ_API_KEY,
     )
 
-    llm_response = call_llm_planner(client, USER_QUERY)
+    llm_response = call_llm_planner(client, "llama3-70b-8192", USER_QUERY)
 
     # printing response
     logging.debug("System prompt:\n%s", SYSTEM_PROMPT)
