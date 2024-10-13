@@ -3,7 +3,6 @@ import unittest
 import csv
 import os
 import logging
-import tqdm
 import sys
 
 from os import getcwd

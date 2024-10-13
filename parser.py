@@ -1,4 +1,5 @@
 import re
+import csv
 import logging
 
 from functioncalls import chat, search_context, check_annotations, summarize_document, classify_span, get_layer, get_scope, annotate, highlight, get_feature, respond
@@ -41,7 +42,8 @@ def call_functions(functions):
         # analyze the parameters and read them from the cache if nessecary
         json_kwargs = {}
         if parameters:
-            parameters = [el.strip() for el in parameters.split(",")]
+            # regex splits at commas that are not in quotes
+            parameters = re.split(r'(?!\B"[^"]*),(?![^"]*"\B)', parameters)
             for p in parameters:
                 kw, val = p.split("=")
                 if val.startswith("$"):
