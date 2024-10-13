@@ -1,5 +1,5 @@
 import re
-import csv
+import sys
 import logging
 
 from functioncalls import chat, search_context, check_annotations, summarize_document, classify_span, get_layer, get_scope, annotate, highlight, get_feature, respond
@@ -43,7 +43,7 @@ def call_functions(functions):
         json_kwargs = {}
         if parameters:
             # regex splits at commas that are not in quotes
-            parameters = re.split(r'(?!\B"[^"]*),(?![^"]*"\B)', parameters)
+            parameters = re.split(r'(?!\B"[^"]*),\s?(?![^"]*"\B)', parameters)
             for p in parameters:
                 kw, val = p.split("=")
                 if val.startswith("$"):
@@ -84,6 +84,10 @@ $4 = get_layer(original_user_query="annotate every animal as such")
 $5 = get_feature(original_user_query="annotate every animal as such", layer=$4)
 $6 = annotate(layer=$4, feature=$5, scope=$1, annotation_positions=$3)
 $7 = respond(context="")"""
-    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger("tests")
+    stdout = logging.StreamHandler(stream=sys.stdout)
+    stdout.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(stdout)
 
     parse_dollars_lines(TEST_INPUT)

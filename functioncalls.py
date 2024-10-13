@@ -1,9 +1,9 @@
 import re
 import logging
 import os
+import sys
 
 from groq import Groq
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,32 +19,37 @@ class void_INCEpTION_UI:
 
 def chat(user_query: str) -> str:
     "The user wants to chat"
-    logging.debug("inside chat\tparameters:\tuser_query=%s", user_query)
+    logger = logging.getLogger("tests")
+    logger.debug("inside chat\tparameters:\tuser_query=%s", user_query)
 
 
 def search_context(criteria: str) -> str:
     """Search for relevent chunks in the text based on the given criteria"""
     """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
-    logging.debug("inside search\tparameters:\tcriteria=%s", criteria)
+    logger = logging.getLogger("tests")
+    logger.debug("inside search\tparameters:\tcriteria=%s", criteria)
 
 
 def check_annotations(layer: str, feature: str, user_query: str) -> str:
     """Iterate over annotations either solely annotations or with sliding context-window"""
-    logging.debug("\ninside check_annotations\nparameters:")
-    logging.debug(f"{layer=}\n{feature=}\n{user_query=}")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside check_annotations\nparameters:")
+    logger.debug(f"{layer=}\n{feature=}\n{user_query=}")
 
 
 def summarize_document(scope: str) -> str:
     """Classifies text based on the scope"""
-    logging.debug("\ninside summarize\nparameters:")
-    logging.debug(f"{scope=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside summarize\nparameters:")
+    logger.debug(f"{scope=}\n")
 
 
 def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
     """Iterates over text determined by the scope and classifies test based on the criteria
         First tuple element is the criteria, second is the classified text"""
-    logging.debug("\ninside classify_span\nparameters:")
-    logging.debug(f"{criteria_query=}\n{scope=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside classify_span\nparameters:")
+    logger.debug(f"{criteria_query=}\n{scope=}\n")
 
     # TODO: get text from doc/cas
     # faking it right now
@@ -89,8 +94,8 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
         temperature=0.0
     )
     return_result = chat_completion.choices[0].message.content
-    logging.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n{text}\n")
-    logging.debug(f"\noutput:\n{return_result}")
+    logger.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n{text}\n")
+    logger.debug(f"\noutput:\n{return_result}")
 
     # extract tags
     found_tags = re.finditer(
@@ -109,18 +114,19 @@ def classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int,
         cnt += 5 + len(m.group(1)) + len(m.group(3))
         found_spans.append(
             (m.group(1), (true_start, true_start + len(m.group(2)))))
-    logging.debug(found_spans)
+    logger.debug(found_spans)
 
     # safety test, applying start:end onto the initial text
     found_words = [text[s:e] for _, (s, e) in found_spans]
-    logging.debug("Found these words in the text: %s", found_words)
+    logger.debug("Found these words in the text: %s", found_words)
     return found_spans
 
 
 def highlight(layer: str, feature: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
     """Highlights the given spans from the text"""
-    logging.debug("\ninside highlight\nparameters:")
-    logging.debug(f"{layer=}\n{feature=}\n{text_to_highlight=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside highlight\nparameters:")
+    logger.debug(f"{layer=}\n{feature=}\n{text_to_highlight=}\n")
 
 
 def annotate(layer: str, feature: str, scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
@@ -128,30 +134,35 @@ def annotate(layer: str, feature: str, scope: str, annotation_positions: list[tu
         then annotates on it
         The anno pairs consist of first the text for the feature
         and second the exact corresponding span in the text"""
-    logging.debug("\ninside annotate\nparameters:")
-    logging.debug(f"{layer=}\n{feature=}\n{scope=}\n{annotation_positions=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside annotate\nparameters:")
+    logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{annotation_positions=}\n")
 
 
 def get_scope(user_query: str):
-    logging.debug("\ninside get_scope\nparameters:")
-    logging.debug(f"{user_query=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside get_scope\nparameters:")
+    logger.debug(f"{user_query=}\n")
     return "current document"
 
 
 def get_text(scope: str):
-    logging.debug("\ninside get_text\nparameters:")
-    logging.debug(f"{scope=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside get_text\nparameters:")
+    logger.debug(f"{scope=}\n")
     return "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
 
 
 def get_layer(original_user_query: str):
-    logging.debug("\ninside get_layer\nparameters:")
-    logging.debug(f"{original_user_query=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside get_layer\nparameters:")
+    logger.debug(f"{original_user_query=}\n")
 
 
 def get_feature(original_user_query: str, layer: str):
-    logging.debug("\ninside get_feature\nparameters:")
-    logging.debug(f"{original_user_query=}\n{layer=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside get_feature\nparameters:")
+    logger.debug(f"{original_user_query=}\n{layer=}\n")
 
 
 def respond(context: str) -> void_INCEpTION_UI:
@@ -160,13 +171,18 @@ def respond(context: str) -> void_INCEpTION_UI:
         Afterwards respond in the chat window"""
     """Potential Prompt, also get initialy user query as parameter
     Justify how well you answered the user query"""
-    logging.debug("\ninside respond\nparameters:")
-    logging.debug(f"{context=}\n")
+    logger = logging.getLogger("tests")
+    logger.debug("\ninside respond\nparameters:")
+    logger.debug(f"{context=}\n")
     return context
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger("tests")
+    stdout = logging.StreamHandler(stream=sys.stdout)
+    stdout.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(stdout)
     classify_span("Annotate all politicians",
                   "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
                   )
