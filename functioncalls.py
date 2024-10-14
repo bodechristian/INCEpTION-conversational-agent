@@ -1,10 +1,12 @@
 import re
 import logging
 import os
+import math
 import sys
 
 from groq import Groq
 from dotenv import load_dotenv
+from langchain_text_splitters import CharacterTextSplitter
 
 from software_environment import Software_environment
 
@@ -20,7 +22,7 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv) -> None:
+    def __init__(self, softwareenv: Software_environment) -> None:
         self.softwareenv = softwareenv
 
         self.valid_functions = {
@@ -67,20 +69,23 @@ class Agentfunctions():
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
 
-        # TODO: get text from doc/cas
-        # faking it right now
-        text = "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
-
+        # get text from doc/cas
         if scope == "current document":
-            text = ""  # TODO
-
+            documenttext = self.softwareenv.get_current_documenttext()
+        # chunk texts
+        # long texts may go out of context window and make llm ignore the prompt 'only respond with embedded text'
+        # too short texts make llm add additional text (e.g. 'candidates' -> the llm answers)
+        text_splitter = CharacterTextSplitter(
+            chunk_size=200, chunk_overlap=0, separator="\n")
+        text_chunks = text_splitter.split_text(documenttext)
+        # maybe make llm call more robust/resilient by finding first few letters
         client = Groq(
             api_key=GROQ_API_KEY,
         )
 
         SYSTEM_PROMPT_CLASSIFY = f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
-        Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>
-        only respond with the embedded sentence.
+        Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
+        Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
 
         Example 1:
         Input:
@@ -97,47 +102,52 @@ class Agentfunctions():
 
         Output:
             The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
+        for text in text_chunks:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT_CLASSIFY,
+                    },
+                    {
+                        "role": "user",
+                        "content": text,
+                    }
+                ],
+                model="llama3-70b-8192",
+                temperature=0.0
+            )
+            return_result = chat_completion.choices[0].message.content
+            # logger.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n")
+            logger.debug("%s\n", text)
+            logger.debug(f"\noutput:\n{return_result}\n")
 
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT_CLASSIFY,
-                },
-                {
-                    "role": "user",
-                    "content": text,
-                }
-            ],
-            model="llama3-70b-8192",
-            temperature=0.0
-        )
-        return_result = chat_completion.choices[0].message.content
-        logger.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n{text}\n")
-        logger.debug(f"\noutput:\n{return_result}")
+            # extract tags
+            found_tags = re.finditer(
+                r'\<([a-z A-Z]+)\>([^<]*?)<\/([a-z A-Z]+)\>', return_result)
 
-        # extract tags
-        found_tags = re.finditer(
-            r'\<([a-z A-Z]+)\>([^<]*?)<\/([a-z A-Z]+)\>', return_result)
+            # count of tag-characters to subtract to get correct index position in original text
+            # could alternatively be done in regex with lookarounds
+            cnt = 0
+            # the found spans in the following format
+            # [(categorization, (start, end)), ..]
+            found_spans = []
+            # iterate over the found tags and count their index position
+            # [print(el) for el in found_tags]
+            for m in found_tags:
+                true_start = m.start()-cnt
+                # add the number of tag-symbols and letters in tags
+                cnt += 5 + len(m.group(1)) + len(m.group(3))
+                found_spans.append(
+                    (m.group(1), (true_start, true_start + len(m.group(2)))))
+            logger.debug(found_spans)
 
-        # count of tag-characters to subtract to get correct index position in original text
-        # could alternatively be done in regex with lookarounds
-        cnt = 0
-        # the found spans in the following format
-        # [(categorization, (start, end)), ..]
-        found_spans = []
-        # iterate over the found tags and count their index position
-        for m in found_tags:
-            true_start = m.start()-cnt
-            # add the number of tag-symbols and letters in tags
-            cnt += 5 + len(m.group(1)) + len(m.group(3))
-            found_spans.append(
-                (m.group(1), (true_start, true_start + len(m.group(2)))))
-        logger.debug(found_spans)
+            # safety test, applying start:end onto the initial text
+            found_words = [text[s:e] for _, (s, e) in found_spans]
+            logger.debug(
+                "Found these words in the text: %s\n--------------------------------\n", found_words)
 
-        # safety test, applying start:end onto the initial text
-        found_words = [text[s:e] for _, (s, e) in found_spans]
-        logger.debug("Found these words in the text: %s", found_words)
+        # TODO: put chunks back together
         return found_spans
 
     def highlight(self, layer: str, feature: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
@@ -179,7 +189,7 @@ class Agentfunctions():
         logger.debug("\ninside get_feature\nparameters:")
         logger.debug(f"{original_user_query=}\n{layer=}\n")
 
-    def respond(self, context: str) -> void_INCEpTION_UI:
+    def respond(self, context: str) -> str:
         """Create a response for the user summarizing the functions/intents called 
             and the previous output
             Afterwards respond in the chat window"""
@@ -195,14 +205,13 @@ if __name__ == "__main__":
     logger = logging.getLogger("tests")
     stdout = logging.StreamHandler(stream=sys.stdout)
     stdout.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(stdout)
 
     softwareenv = Software_environment()
     functionclass = Agentfunctions(softwareenv)
     functionclass.classify_span("Annotate all politicians",
-                                "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
-                                )
+                                "current document")
 
 
 # TEMPDUMP
