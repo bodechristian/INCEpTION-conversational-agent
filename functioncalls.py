@@ -140,8 +140,9 @@ def annotate(layer: str, feature: str, scope: str, annotation_positions: list[tu
 
 
 def get_scope(user_query: str):
+    """analyzes the user_query and returns the document id(s) of the relevant document"""
     logger = logging.getLogger("tests")
-    logger.debug("\ninside get_scope\nparameters:")
+    logger.debug("inside get_scope\nparameters:")
     logger.debug(f"{user_query=}\n")
     return "current document"
 
