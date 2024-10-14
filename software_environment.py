@@ -44,6 +44,15 @@ class Software_environment():
     def get_current_documenttext(self):
         return self.documents[self.current_document_id].sofa_string
 
+    def update_current_document(self, cas):
+        self.documents[self.current_document_id] = cas
+
+    def update_document_by_id(self, id, cas):
+        if id < 0 or id >= self.next_id:
+            # logger.debug("set_current_document id parameter was illegal")
+            return
+        self.documents[id] = cas
+
 
 if __name__ == "__main__":
     a = Software_environment()

@@ -1,14 +1,12 @@
 import sys
-import parser
 import logging
 import os
 
+from parser import Dollarparser
+from functioncalls import Agentfunctions
+from software_environment import Software_environment
 from groq import Groq
 from dotenv import load_dotenv
-
-load_dotenv()
-
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 SYSTEM_PROMPT = """
 You are a friendly intelligent assistant.
@@ -82,46 +80,48 @@ Please annotate every animal as such?
 """
 
 
-def call_llm_planner(client, model, user_query):
+class Agent():
 
-    chat_completion = client.chat.completions.create(
-        messages=[
-            # system prompt
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT,
+    def __init__(self) -> None:
+        load_dotenv()
+        self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
-            },
-            {
-                "role": "user",
-                "content": user_query,
-            }
-        ],
-        model=model,
-        temperature=0.0
-    )
-    return chat_completion.choices[0].message.content
+        # creating logger
+        self.logger = logging.getLogger("tests")
+        stdout = logging.StreamHandler(stream=sys.stdout)
+        stdout.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
+        self.logger.addHandler(stdout)
 
+        # initialize api and software env
+        self.softwareenv = Software_environment()
+        self.functionclass = Agentfunctions(self.softwareenv)
+        self.parser = Dollarparser(self.functionclass)
+        self.client = Groq(
+            api_key=self.GROQ_API_KEY,
+        )
 
-if __name__ == "__main__":
-    logger = logging.getLogger("tests")
-    stdout = logging.StreamHandler(stream=sys.stdout)
-    stdout.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(stdout)
-    # check if user prompt was given
-    if len(sys.argv) > 1:
-        USER_QUERY = sys.argv[1]
+    def call_llm_planner(self, model, user_query):
+        chat_completion = self.client.chat.completions.create(
+            messages=[
+                # system prompt
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT,
 
-    client = Groq(
-        api_key=GROQ_API_KEY,
-    )
-
-    llm_response = call_llm_planner(client, "llama3-70b-8192", USER_QUERY)
-
-    # printing response
-    logger.debug("System prompt:\n%s", SYSTEM_PROMPT)
-    logger.info("""
+                },
+                {
+                    "role": "user",
+                    "content": user_query,
+                }
+            ],
+            model=model,
+            temperature=0.0
+        )
+        llm_response = chat_completion.choices[0].message.content
+        # printing response
+        self.logger.debug("System prompt:\n%s", SYSTEM_PROMPT)
+        self.logger.info("""
 --------------------------\n
 user input:
 %s
@@ -129,10 +129,23 @@ user input:
 output:
 %s
 \n--------------------------\n""", USER_QUERY, llm_response)
-    # call parser and functions
-    parsed_dollar_lines = parser.parse_dollars_lines(llm_response)
-    logger.info("""
+        # call parser and functions
+        parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(
+            llm_response)
+        self.logger.info("""
 response: 
 --------------------------\n      
 %s
-\n--------------------------\n""", parsed_dollar_lines)
+\n--------------------------\n""", parsed_dollar_syntax)
+        return llm_response
+
+
+if __name__ == "__main__":
+    # check if user prompt was given
+    if len(sys.argv) > 1:
+        USER_QUERY = sys.argv[1]
+
+    # create conversational agent
+    agent = Agent()
+    # call the llm planner
+    llm_response = agent.call_llm_planner("llama3-70b-8192", USER_QUERY)
