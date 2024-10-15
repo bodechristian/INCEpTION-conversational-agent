@@ -5,7 +5,7 @@ from os.path import join
 
 
 class Software_environment():
-    # id: cas
+    # id: cas_json
     documents = {}
     next_id = 0
     current_document_id = -1

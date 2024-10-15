@@ -77,6 +77,8 @@ class Agentfunctions():
         # long texts also make llm embelish (e.g. change 'Clinton' to 'Hillary Clinton')
         # changing the length of text and making indexes inaccurate
         # too short texts make llm add additional text (e.g. 'candidates' -> the llm answers)
+        # PROBLEM: LLM loves turning \r\n\r\n into \n\n
+        # or sometimes \r\n into \r\n\r\n
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1500, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
         text_chunks = text_splitter.split_text(documenttext)
@@ -88,6 +90,7 @@ class Agentfunctions():
         SYSTEM_PROMPT_CLASSIFY = f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
         Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
         Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
+        Pay special attention to using the same whitespace and newline characters as the input.
 
         Example 1:
         Input:
@@ -99,11 +102,11 @@ class Agentfunctions():
 
         Example 2:
         Input:
-            Query: politicians
-            The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton.
+            Query: food
+            There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
 
         Output:
-            The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
+            There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer </food>peaches</food> or <food>bananas</food>."""
 
         # the found spans in the following format
         # [(categorization, (start, end)), ..]
@@ -131,6 +134,12 @@ class Agentfunctions():
             logger.debug(f"\noutput:\n{[return_result]}")
             logger.debug("\n--------------------------------\n")
 
+            # hacky fix for \r\n\r\n -> \n\n problem
+            # maybe will break other documents that dont use \r\n
+            return_result = re.sub(
+                r'(?:^|[^\r])\n\n', r'\r\n\r\n', return_result)
+            return_result = re.sub(r'[^\r]\n', r'\r\n', return_result)
+
             # extract tags
             found_tags = re.finditer(
                 r'\<([a-z A-Z]+)\>([^<]*?)<\/([a-z A-Z]+)\>', return_result)
@@ -153,11 +162,11 @@ class Agentfunctions():
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         return found_spans
 
-    def highlight(self, layer: str, feature: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
+    def highlight(self, layer: str, feature: str, scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""
         logger = logging.getLogger("tests")
         logger.debug("\ninside highlight\nparameters:")
-        logger.debug(f"{layer=}\n{feature=}\n{text_to_highlight=}\n")
+        logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{text_to_highlight=}\n")
 
     def annotate(self, layer: str, feature: str, scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """First finds most appropriate Layer and Feature from user query
@@ -249,4 +258,12 @@ Your job is to identify spans in the text that satisfy this query: {criteria}.
                                     Donald Trump is a politician and at position 35:47, Mike pence is at position 69:79 and Hillary Clinton is at 177:192.
 
                                 Output:
-                                    [("politician", (35, 47)), ("politician", (69, 79), ("politician", (177, 192))] """
+                                    [("politician", (35, 47)), ("politician", (69, 79), ("politician", (177, 192))] 
+                                    
+                Example 2:
+        Input:
+            Query: politicians
+            The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton.
+
+        Output:
+            The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
