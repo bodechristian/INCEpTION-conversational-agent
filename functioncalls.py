@@ -6,7 +6,7 @@ import sys
 
 from groq import Groq
 from dotenv import load_dotenv
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from software_environment import Software_environment
 
@@ -74,11 +74,13 @@ class Agentfunctions():
             documenttext = self.softwareenv.get_current_documenttext()
         # chunk texts
         # long texts may go out of context window and make llm ignore the prompt 'only respond with embedded text'
+        # long texts also make llm embelish (e.g. change 'Clinton' to 'Hillary Clinton')
+        # changing the length of text and making indexes inaccurate
         # too short texts make llm add additional text (e.g. 'candidates' -> the llm answers)
-        text_splitter = CharacterTextSplitter(
-            chunk_size=200, chunk_overlap=0, separator="\n")
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
         text_chunks = text_splitter.split_text(documenttext)
-        # maybe make llm call more robust/resilient by finding first few letters
+        # maybe make llm call more robust/resilient by seeing if length pre and post embed are the same (after erasing tags again)
         client = Groq(
             api_key=GROQ_API_KEY,
         )
@@ -102,6 +104,12 @@ class Agentfunctions():
 
         Output:
             The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
+
+        # the found spans in the following format
+        # [(categorization, (start, end)), ..]
+        found_spans = []
+        cnt_docs = 0
+
         for text in text_chunks:
             chat_completion = client.chat.completions.create(
                 messages=[
@@ -119,8 +127,9 @@ class Agentfunctions():
             )
             return_result = chat_completion.choices[0].message.content
             # logger.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n")
-            logger.debug("%s\n", text)
-            logger.debug(f"\noutput:\n{return_result}\n")
+            logger.debug("input:\n%s\n", [text])
+            logger.debug(f"\noutput:\n{[return_result]}")
+            logger.debug("\n--------------------------------\n")
 
             # extract tags
             found_tags = re.finditer(
@@ -129,25 +138,19 @@ class Agentfunctions():
             # count of tag-characters to subtract to get correct index position in original text
             # could alternatively be done in regex with lookarounds
             cnt = 0
-            # the found spans in the following format
-            # [(categorization, (start, end)), ..]
-            found_spans = []
             # iterate over the found tags and count their index position
-            # [print(el) for el in found_tags]
             for m in found_tags:
-                true_start = m.start()-cnt
+                true_start = m.start()-cnt + cnt_docs
                 # add the number of tag-symbols and letters in tags
                 cnt += 5 + len(m.group(1)) + len(m.group(3))
                 found_spans.append(
                     (m.group(1), (true_start, true_start + len(m.group(2)))))
-            logger.debug(found_spans)
+            cnt_docs += len(text)
 
-            # safety test, applying start:end onto the initial text
-            found_words = [text[s:e] for _, (s, e) in found_spans]
-            logger.debug(
-                "Found these words in the text: %s\n--------------------------------\n", found_words)
-
-        # TODO: put chunks back together
+        # safety test, applying start:end onto the initial text
+        found_words = [(documenttext[s:e], s, e) for _, (s, e) in found_spans]
+        logger.debug(
+            "Found these words in the text: %s\n--------------------------------\n", found_words)
         return found_spans
 
     def highlight(self, layer: str, feature: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
