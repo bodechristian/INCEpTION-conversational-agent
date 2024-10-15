@@ -90,7 +90,7 @@ class Agent():
         self.logger = logging.getLogger("tests")
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(stdout)
 
         # initialize api and software env
@@ -101,7 +101,7 @@ class Agent():
             api_key=self.GROQ_API_KEY,
         )
 
-    def call_llm_planner(self, model, user_query):
+    def call_llm_planner(self, model, user_query, execute_functions=True):
         chat_completion = self.client.chat.completions.create(
             messages=[
                 # system prompt
@@ -129,10 +129,11 @@ user input:
 output:
 %s
 \n--------------------------\n""", USER_QUERY, llm_response)
-        # call parser and functions
-        parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(
-            llm_response)
-        self.logger.info("""
+        if execute_functions:
+            # call parser and functions
+            parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(
+                llm_response)
+            self.logger.info("""
 response: 
 --------------------------\n      
 %s

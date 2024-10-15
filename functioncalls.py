@@ -44,11 +44,12 @@ class Agentfunctions():
         logger = logging.getLogger("tests")
         logger.debug("inside chat\tparameters:\tuser_query=%s", user_query)
 
-    def search_context(self, criteria: str) -> str:
+    def search_context(self, criteria_query: str) -> str:
         """Search for relevent chunks in the text based on the given criteria"""
         """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
         logger = logging.getLogger("tests")
-        logger.debug("inside search\tparameters:\tcriteria=%s", criteria)
+        logger.debug(
+            "inside search\tparameters:\tcriteria_query=%s", criteria_query)
 
     def check_annotations(self, layer: str, feature: str, user_query: str) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
@@ -80,7 +81,7 @@ class Agentfunctions():
         # PROBLEM: LLM loves turning \r\n\r\n into \n\n
         # or sometimes \r\n into \r\n\r\n
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
+            chunk_size=1000, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
         text_chunks = text_splitter.split_text(documenttext)
         # maybe make llm call more robust/resilient by seeing if length pre and post embed are the same (after erasing tags again)
         client = Groq(
@@ -129,16 +130,16 @@ class Agentfunctions():
                 temperature=0.0
             )
             return_result = chat_completion.choices[0].message.content
+            # hacky fix for \r\n\r\n -> \n\n problem
+            # maybe will break other documents that dont use \r\n
+            return_result = re.sub(
+                r'(^|[^\r])\n\n', r'\g<1>\r\n\r\n', return_result)
+            return_result = re.sub(r'([^\r])\n', r'\g<1>\r\n', return_result)
+
             # logger.debug(f"\n{SYSTEM_PROMPT_CLASSIFY}\n")
             logger.debug("input:\n%s\n", [text])
             logger.debug(f"\noutput:\n{[return_result]}")
             logger.debug("\n--------------------------------\n")
-
-            # hacky fix for \r\n\r\n -> \n\n problem
-            # maybe will break other documents that dont use \r\n
-            return_result = re.sub(
-                r'(?:^|[^\r])\n\n', r'\r\n\r\n', return_result)
-            return_result = re.sub(r'[^\r]\n', r'\r\n', return_result)
 
             # extract tags
             found_tags = re.finditer(
@@ -183,7 +184,35 @@ class Agentfunctions():
         logger = logging.getLogger("tests")
         logger.debug("inside get_scope\nparameters:")
         logger.debug(f"{user_query=}\n")
-        return "current document"
+
+        client = Groq(
+            api_key=GROQ_API_KEY,
+        )
+
+        SYSTEM_PROMPT_GETSCOPE = f"""You are an assistant for an annotation software.
+Your job is to identify whether a query written by a user refers only to the current document or all documents.
+Respond only with either 'current document' or 'all documents'. By default the user is refering to the current document.
+Only respond with 'all documents' if the user specifically mentions it.
+
+user_query:"""
+
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT_GETSCOPE,
+                },
+                {
+                    "role": "user",
+                    "content": user_query,
+                }
+            ],
+            model="llama3-70b-8192",
+            temperature=0.0
+        )
+        return_result = chat_completion.choices[0].message.content
+
+        return return_result
 
     def get_text(self, scope: str):
         logger = logging.getLogger("tests")
@@ -222,8 +251,9 @@ if __name__ == "__main__":
 
     softwareenv = Software_environment()
     functionclass = Agentfunctions(softwareenv)
-    functionclass.classify_span("Annotate all politicians",
-                                "current document")
+    # functionclass.classify_span("Annotate all politicians",
+    #                             "current document")
+    print(functionclass.get_scope("annotate all politicians"))
 
 
 # TEMPDUMP
