@@ -1,0 +1,107 @@
+testcases:
+  - prompt: Identify every animal in every document
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer
+      - get_feature
+      - highlight
+      - respond
+    scope: all documents
+    layer: Animal
+    feature: species
+
+  - prompt: How fast does a cheetah run?
+    expectations:
+      - search_context
+      - respond
+    scope: current document
+    layer:
+    feature:
+
+  - prompt: How often is the word 'cheetah' annotated?
+    expectations:
+      - check_annotations
+      - respond
+    scope: current document
+    layer:
+    feature:
+
+  - prompt: Annotate every animal as either four-legged, two-legged or other.
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer
+      - get_feature
+      - annotate
+      - respond
+    scope: current document
+    layer: Animal
+    feature: number of legs
+
+  - prompt: Check if every annotation with the dog label also accurately describes the animal cheetah
+    expectations:
+      - check_annotations
+      - respond
+    scope: current document
+    layer:
+    feature:
+
+  - prompt: Tell me a joke
+    expectations:
+      - respond
+    scope:
+    layer:
+    feature:
+
+  - prompt: What kind of animal is the cheetah?
+    expectations:
+      - search_context
+      - respond
+    scope: current document
+    layer:
+    feature:
+
+  - prompt: Annotate every animal as such
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer
+      - get_feature
+      - annotate
+      - respond
+    scope: current document
+    layer: Animal
+    feature: species
+
+  - prompt: Annotate every mention of cheetah
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer
+      - get_feature
+      - annotate
+      - respond
+    scope: current document
+    layer: Animal
+    feature: species
+
+  - prompt: Annotate every mention of cheetah as 'cat'
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer
+      - get_feature
+      - annotate
+      - respond
+    scope: current document
+    layer: Animal
+    feature: species
+
+  - prompt: Summarize the text
+    expectations:
+      - summarize_document
+      - respond
+    scope: current document
+    layer:
+    feature:
