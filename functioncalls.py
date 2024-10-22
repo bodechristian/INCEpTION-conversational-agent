@@ -41,32 +41,32 @@ class Agentfunctions():
 
     def chat(self, user_query: str) -> str:
         "The user wants to chat"
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("inside chat\tparameters:\tuser_query=%s", user_query)
 
     def search_context(self, criteria_query: str) -> str:
         """Search for relevent chunks in the text based on the given criteria"""
         """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug(
             "inside search\tparameters:\tcriteria_query=%s", criteria_query)
 
     def check_annotations(self, layer: str, feature: str, user_query: str) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
         logger.debug(f"{layer=}\n{feature=}\n{user_query=}")
 
     def summarize_document(self, scope: str) -> str:
         """Classifies text based on the scope"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside summarize\nparameters:")
         logger.debug(f"{scope=}\n")
 
     def classify_span(self, criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
         """Iterates over text determined by the scope and classifies test based on the criteria
             First tuple element is the criteria, second is the classified text"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
 
@@ -165,7 +165,7 @@ class Agentfunctions():
 
     def highlight(self, layer: str, feature: str, scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\nparameters:")
         logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{text_to_highlight=}\n")
 
@@ -174,14 +174,14 @@ class Agentfunctions():
             then annotates on it
             The anno pairs consist of first the text for the feature
             and second the exact corresponding span in the text"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside annotate\nparameters:")
         logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{
                      annotation_positions=}\n")
 
     def get_scope(self, user_query: str):
         """analyzes the user_query and returns the document id(s) of the relevant document"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("inside get_scope\nparameters:")
         logger.debug(f"{user_query=}\n")
 
@@ -215,18 +215,18 @@ user_query:"""
         return return_result
 
     def get_text(self, scope: str):
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside get_text\nparameters:")
         logger.debug(f"{scope=}\n")
         return "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
 
     def get_layer(self, original_user_query: str):
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside get_layer\nparameters:")
         logger.debug(f"{original_user_query=}\n")
 
     def get_feature(self, original_user_query: str, layer: str):
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside get_feature\nparameters:")
         logger.debug(f"{original_user_query=}\n{layer=}\n")
 
@@ -236,14 +236,14 @@ user_query:"""
             Afterwards respond in the chat window"""
         """Potential Prompt, also get initialy user query as parameter
         Justify how well you answered the user query"""
-        logger = logging.getLogger("tests")
+        logger = logging.getLogger("functions")
         logger.debug("\ninside respond\nparameters:")
         logger.debug(f"{context=}\n")
         return context
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("tests")
+    logger = logging.getLogger("functions")
     stdout = logging.StreamHandler(stream=sys.stdout)
     stdout.setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)

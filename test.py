@@ -4,6 +4,7 @@ import csv
 import os
 import logging
 import sys
+import yaml
 
 from os import getcwd
 from os.path import join
@@ -17,23 +18,37 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 
 class TestParser(unittest.TestCase):
-    def __init__(self, methodName: str = "runTest") -> None:
-        super().__init__(methodName)
+    @classmethod
+    def setUpClass(cls):
+        super(TestParser, cls).setUpClass()
 
-    def setUp(self):
-        # load groq
-        self.client = Groq(
+        # read and save yaml test files
+        files = ["test_expectations_Cheetah.yaml",
+                 "test_expectations_Politician.yaml"]
+        cls.data = {}
+        for f in files:
+            with open(join(getcwd(), "testfiles", f)) as stream:
+                try:
+                    yml = yaml.safe_load(stream)
+                    cls.data[f] = yml
+                except yaml.YAMLError as exc:
+                    print(exc)
+
+        # set up Groq API client
+        cls.client = Groq(
             api_key=GROQ_API_KEY,
         )
-        self.agent = Agent()
+        cls.agent = Agent()
+
+        # set up logger
+        # unittest automatically adds handler (at DEBUG level)
+        cls.logger = logging.getLogger("tests")
 
     def test_expected_functions(self):
         # the models and files to test the planner on
-        # Groq website says 30 requests per minute is the ratelimit
-        # but it seems to be 10????
         models = ["llama3-70b-8192"]
-        files = ["test_expectations_Cheetah.csv",
-                 "test_expectations_Politician.csv"]
+        files = ["test_expectations_Cheetah.yaml",
+                 "test_expectations_Politician.yaml"]
 
         for file in files[:1]:
             for model in models:
@@ -41,56 +56,57 @@ class TestParser(unittest.TestCase):
                 self.helper_scope(file, model)
 
     def helper_planner(self, file, model):
-        logger.info("testing %s with %s", file, model)
-        # open file
-        with open(join(getcwd(), "testfiles", file), newline="") as f:
-            reader = csv.reader(f)
-            next(reader)  # skip header
-            correct_results = 0
-            for i, row in enumerate(reader):
-                # extract columns from csv
-                prompt, expected_results, scope, layer, feature, label, criteria = row
-                expected_results = set(expected_results.split(","))
-                # prompt planner
-                llm_response = self.agent.call_llm_planner(
-                    model, prompt, execute_functions=False)
-                # extract only the functions from the planner response
-                detected = set([func for _, func,
-                                _ in self.agent.parser.analyze_functions(llm_response)])
-                # see if correct functions were called (order irrelevant)
-                correct_result = detected == expected_results
-                correct_results += correct_result
-                # logging
-                logger.debug("Analyzing prompt: %s", prompt)
-                logger.debug("Expected functioncalls: %s", expected_results)
-                logger.debug("Detected functioncalls: %s", detected)
-                logger.debug("Correct Result?: %s\n", correct_result)
-        logger.info(
-            "%d/%d functions were correctly called from the planner.", correct_results, i+1)
+        self.logger.info(
+            "\nTesting correct planning on %s with model %s", file, model)
+        correct_results = 0
+        for i, testcase in enumerate(self.data[file]["testcases"]):
+            # extract columns from yaml
+            prompt = testcase["prompt"]
+            expected_results = set(testcase["expectations"])
+
+            # prompt planner
+            llm_response = self.agent.call_llm_planner(
+                model, prompt, execute_functions=False)
+
+            # extract only the functions from the planner response
+            detected = set([func for _, func,
+                            _ in self.agent.parser.analyze_functions(llm_response)])
+
+            # see if correct functions were called (order irrelevant)
+            correct_result = detected == expected_results
+            correct_results += correct_result
+
+            # logging
+            self.logger.debug("\nAnalyzing prompt: %s", prompt)
+            self.logger.debug("Expected functioncalls: %s", expected_results)
+            self.logger.debug("Detected functioncalls: %s", detected)
+            self.logger.debug("Correct Result?: %s", correct_result)
+        self.logger.info(
+            "\n%d/%d functions were correctly called from the planner.", correct_results, i+1)
 
     def helper_scope(self, file, model):
-        with open(join(getcwd(), "testfiles", file), newline="") as f:
-            reader = csv.reader(f)
-            next(reader)  # skip header
-            correct_results = 0
-            for i, row in enumerate(reader):
-                # extract columns from csv
-                prompt, expected_results, scope, layer, feature, label, criteria = row
-                pred_scope = self.agent.functionclass.get_scope(prompt)
-                correct_results += scope == pred_scope
-                logger.debug("Analyzing prompt: %s", prompt)
-                logger.debug("Expected scope: %s", scope)
-                logger.debug("Detected scope: %s", pred_scope)
-                logger.debug("Correct Result?: %s\n", scope == pred_scope)
+        self.logger.info(
+            "\nTesting scope detection on %s with model %s", file, model)
+        correct_results = 0
+        for i, testcase in list(enumerate(self.data[file]["testcases"]))[:4]:
+            # extract columns from yaml
+            prompt = testcase["prompt"]
+            scope = testcase["scope"]
 
-        logger.info(
-            "%d/%d scopes were correctly predicted.", correct_results, i+1)
+            # get prediction
+            pred_scope = self.agent.functionclass.get_scope(prompt)
+
+            # check prediction to expectation
+            correct_results += scope == pred_scope
+
+            # logging
+            self.logger.debug("\nAnalyzing prompt: %s", prompt)
+            self.logger.debug("Expected scope: %s", scope)
+            self.logger.debug("Detected scope: %s", pred_scope)
+            self.logger.debug("Correct Result?: %s", scope == pred_scope)
+        self.logger.info(
+            "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("test")
-    stdout = logging.StreamHandler(stream=sys.stdout)
-    stdout.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(stdout)
     unittest.main()
