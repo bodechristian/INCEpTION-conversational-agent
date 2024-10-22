@@ -107,7 +107,7 @@ class Agentfunctions():
             There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
 
         Output:
-            There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer </food>peaches</food> or <food>bananas</food>."""
+            There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
 
         # the found spans in the following format
         # [(categorization, (start, end)), ..]

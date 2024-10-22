@@ -15,12 +15,6 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
-logger = logging.getLogger("tests")
-stdout = logging.StreamHandler(stream=sys.stdout)
-stdout.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
-logger.addHandler(stdout)
-
 
 class TestParser(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
@@ -43,8 +37,8 @@ class TestParser(unittest.TestCase):
 
         for file in files[:1]:
             for model in models:
-                self.helper_planner(file, model)
-                # self.helper_scope(file, model)
+                # self.helper_planner(file, model)
+                self.helper_scope(file, model)
 
     def helper_planner(self, file, model):
         logger.info("testing %s with %s", file, model)
@@ -91,3 +85,12 @@ class TestParser(unittest.TestCase):
 
         logger.info(
             "%d/%d scopes were correctly predicted.", correct_results, i+1)
+
+
+if __name__ == "__main__":
+    logger = logging.getLogger("test")
+    stdout = logging.StreamHandler(stream=sys.stdout)
+    stdout.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(stdout)
+    unittest.main()
