@@ -4,6 +4,7 @@ import os
 import math
 import sys
 
+from prompts import *
 from groq import Groq
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -88,27 +89,6 @@ class Agentfunctions():
             api_key=GROQ_API_KEY,
         )
 
-        SYSTEM_PROMPT_CLASSIFY = f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
-        Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
-        Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
-        Pay special attention to using the same whitespace and newline characters as the input.
-
-        Example 1:
-        Input:
-            Query: animals
-            Duke asked Lulu to tell him a story about cats and dogs living together in harmony.
-
-        Output:
-            Duke asked Lulu to tell him a story about <animal>cats</animal> and <animal>dogs</animal> living together in harmony.
-
-        Example 2:
-        Input:
-            Query: food
-            There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
-
-        Output:
-            There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
-
         # the found spans in the following format
         # [(categorization, (start, end)), ..]
         found_spans = []
@@ -119,7 +99,7 @@ class Agentfunctions():
                 messages=[
                     {
                         "role": "system",
-                        "content": SYSTEM_PROMPT_CLASSIFY,
+                        "content": get_system_prompt_classify(criteria_query),
                     },
                     {
                         "role": "user",
@@ -189,13 +169,6 @@ class Agentfunctions():
             api_key=GROQ_API_KEY,
         )
 
-        SYSTEM_PROMPT_GETSCOPE = f"""You are an assistant for an annotation software.
-Your job is to identify whether a query written by a user refers only to the current document or all documents.
-Respond only with either 'current document' or 'all documents'. By default the user is refering to the current document.
-Only respond with 'all documents' if the user specifically mentions it.
-
-user_query:"""
-
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -254,46 +227,3 @@ if __name__ == "__main__":
     # functionclass.classify_span("Annotate all politicians",
     #                             "current document")
     print(functionclass.get_scope("annotate all politicians"))
-
-
-# TEMPDUMP
-
-"""
-CLASSIFY SPAN 
-Your job is to identify spans in the text that satisfy this query: {criteria}.
-                                for each identified span return a tuple of the classification and the start and end position of the span.
-                                The position is counted by each letter, punctuation and whitespace counting as 1 position.
-                                Answer only with the list.
-                                Here is an example of an input and an output, but for a different criteria:
-
-                                Example 1:
-                                Input:
-                                    Query: animals
-                                    Duke asked Lulu to tell him a story about cats and dogs living together in harmony.
-
-                                Thought:
-                                    The words 'cats' and 'dogs' satisfy the query. 'cats' start position in the text is 42 and ends at 46.
-                                    'dogs' starts at 51 and ends at 55.
-
-                                Output:
-                                    [("animals", (42, 46)), ("animals", (51, 55))]
-
-
-                                Example 2:
-                                Input:
-                                    Query: politicians
-                                    The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton.
-
-                                Thought:
-                                    Donald Trump is a politician and at position 35:47, Mike pence is at position 69:79 and Hillary Clinton is at 177:192.
-
-                                Output:
-                                    [("politician", (35, 47)), ("politician", (69, 79), ("politician", (177, 192))] 
-                                    
-                Example 2:
-        Input:
-            Query: politicians
-            The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton.
-
-        Output:
-            The Republican ticket, businessman <politician>Donald Trump</politician> and Indiana governor <politician>Mike Pence</politician>, defeated the Democratic ticket of former secretary of state and First Lady of the United States <politician>Hillary Clinton</politician>."""
