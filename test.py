@@ -1,6 +1,5 @@
 import logging.config
 import unittest
-import csv
 import os
 import logging
 import sys
@@ -41,8 +40,11 @@ class TestParser(unittest.TestCase):
         cls.agent = Agent()
 
         # set up logger
-        # unittest automatically adds handler (at DEBUG level)
         cls.logger = logging.getLogger("tests")
+        stdout = logging.StreamHandler(stream=sys.stdout)
+        stdout.setLevel(logging.DEBUG)
+        cls.logger.setLevel(logging.DEBUG)
+        cls.logger.addHandler(stdout)
 
     def test_expected_functions(self):
         # the models and files to test the planner on

@@ -77,10 +77,10 @@ $4 = get_layer(original_user_query="annotate every animal as such")
 $5 = get_feature(original_user_query="annotate every animal as such", layer=$4)
 $6 = annotate(layer=$4, feature=$5, scope=$1, annotation_positions=$3)
 $7 = respond(context="")"""
-    logger = logging.getLogger("tests")
+    logger = logging.getLogger("functions")
     stdout = logging.StreamHandler(stream=sys.stdout)
     stdout.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(stdout)
 
     softwareenv = Software_environment()

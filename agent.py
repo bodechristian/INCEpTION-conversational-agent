@@ -18,11 +18,11 @@ class Agent():
         self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
         # creating logger
-        self.logger = logging.getLogger("tests")
-        stdout = logging.StreamHandler(stream=sys.stdout)
-        stdout.setLevel(logging.DEBUG)
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(stdout)
+        # self.logger = logging.getLogger("output")
+        # stdout = logging.StreamHandler(stream=sys.stdout)
+        # stdout.setLevel(logging.DEBUG)
+        # self.logger.setLevel(logging.DEBUG)
+        # self.logger.addHandler(stdout)
 
         # initialize api and software env
         self.softwareenv = Software_environment()
