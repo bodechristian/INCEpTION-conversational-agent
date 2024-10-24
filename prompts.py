@@ -100,3 +100,17 @@ Respond only with either 'current document' or 'all documents'. By default the u
 Only respond with 'all documents' if the user specifically mentions it.
 
 user_query:"""
+
+LOGGER_PLANNER_RESPONSE = """
+response: 
+--------------------------\n      
+%s
+\n--------------------------\n"""
+LOGGER_PLANNER_INPUT = """
+--------------------------\n
+user input:
+%s
+--------------------------\n
+output:
+%s
+\n--------------------------\n"""

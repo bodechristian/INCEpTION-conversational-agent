@@ -23,7 +23,7 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv: Software_environment) -> None:
+    def __init__(self, softwareenv: Software_environment, llm_call_callback) -> None:
         self.softwareenv = softwareenv
 
         self.valid_functions = {
@@ -94,7 +94,7 @@ class Agentfunctions():
         found_spans = []
         cnt_docs = 0
 
-        for text in text_chunks:
+        for text in text_chunks[:4]:
             chat_completion = client.chat.completions.create(
                 messages=[
                     {
