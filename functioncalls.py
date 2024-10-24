@@ -67,6 +67,13 @@ class Agentfunctions():
         logger.debug("\ninside summarize\nparameters:")
         logger.debug(f"{scope=}\n")
 
+        txt = ""
+        if scope == "current document":
+            txt = self.softwareenv.get_current_documenttext()
+        return_result = self.callback_llm(SYSTEM_PROMPT_SUMMARIZE, txt)
+
+        return return_result
+
     def classify_span(self, criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
         """Iterates over text determined by the scope and classifies test based on the criteria
             First tuple element is the criteria, second is the classified text"""
@@ -156,12 +163,6 @@ class Agentfunctions():
         return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, user_query)
 
         return return_result
-
-    def get_text(self, scope: str):
-        logger = logging.getLogger("functions")
-        logger.debug("\ninside get_text\nparameters:")
-        logger.debug(f"{scope=}\n")
-        return "The Republican ticket, businessman Donald Trump and Indiana governor Mike Pence, defeated the Democratic ticket of former secretary of state and First Lady of the United States Hillary Clinton. LeBron James voted that year. Johannes Fliederman is a local german politician."
 
     def get_layer(self, original_user_query: str):
         logger = logging.getLogger("functions")

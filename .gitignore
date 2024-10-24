@@ -5,3 +5,4 @@ temp_pys/
 venv/
 .venv/
 .env
+temp.py

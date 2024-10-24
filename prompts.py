@@ -94,7 +94,8 @@ Output:
     There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
 
 
-SYSTEM_PROMPT_GETSCOPE = f"""You are an assistant for an annotation software.
+SYSTEM_PROMPT_SUMMARIZE = """Your job is to summarize documents. Summarize this following document:"""
+SYSTEM_PROMPT_GETSCOPE = """You are an assistant for an annotation software.
 Your job is to identify whether a query written by a user refers only to the current document or all documents.
 Respond only with either 'current document' or 'all documents'. By default the user is refering to the current document.
 Only respond with 'all documents' if the user specifically mentions it.
