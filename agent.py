@@ -18,11 +18,14 @@ class Agent():
         self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
         # creating logger
-        self.logger = logging.getLogger("output")
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger = logging.getLogger("output")
+        self.logger.setLevel(logging.INFO)
         self.logger.addHandler(stdout)
+        # l = logging.getLogger("functions")
+        # l.setLevel(logging.DEBUG)
+        # l.addHandler(stdout)
 
         # initialize api and software env
         self.model = model
@@ -53,24 +56,8 @@ class Agent():
         llm_response = chat_completion.choices[0].message.content
         return llm_response
 
-    def call_llm_planner(self, model, user_query, execute_functions=True):
-        chat_completion = self.client.chat.completions.create(
-            messages=[
-                # system prompt
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT_PLANNER,
-
-                },
-                {
-                    "role": "user",
-                    "content": user_query,
-                }
-            ],
-            model=model,
-            temperature=0.0
-        )
-        llm_response = chat_completion.choices[0].message.content
+    def call_llm_planner(self, user_query, execute_functions=True):
+        llm_response = self.call_llm(SYSTEM_PROMPT_PLANNER, user_query)
         # printing response
         self.logger.debug("System prompt:\n%s", SYSTEM_PROMPT_PLANNER)
         self.logger.info(LOGGER_PLANNER_INPUT,
@@ -92,5 +79,4 @@ if __name__ == "__main__":
     # create conversational agent
     agent = Agent()
     # call the llm planner
-    llm_response = agent.call_llm_planner(
-        "llama3-70b-8192", user_query)
+    llm_response = agent.call_llm_planner(user_query)

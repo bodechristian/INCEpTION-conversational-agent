@@ -4,6 +4,8 @@ import os
 import math
 import sys
 
+from typing import Callable
+
 from prompts import *
 from groq import Groq
 from dotenv import load_dotenv
@@ -23,8 +25,9 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv: Software_environment, llm_call_callback) -> None:
+    def __init__(self, softwareenv: Software_environment, callback_llm) -> None:
         self.softwareenv = softwareenv
+        self.callback_llm = callback_llm
 
         self.valid_functions = {
             "chat": self.chat,
@@ -85,9 +88,6 @@ class Agentfunctions():
             chunk_size=1000, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
         text_chunks = text_splitter.split_text(documenttext)
         # maybe make llm call more robust/resilient by seeing if length pre and post embed are the same (after erasing tags again)
-        client = Groq(
-            api_key=GROQ_API_KEY,
-        )
 
         # the found spans in the following format
         # [(categorization, (start, end)), ..]
@@ -95,21 +95,9 @@ class Agentfunctions():
         cnt_docs = 0
 
         for text in text_chunks[:4]:
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": get_system_prompt_classify(criteria_query),
-                    },
-                    {
-                        "role": "user",
-                        "content": text,
-                    }
-                ],
-                model="llama3-70b-8192",
-                temperature=0.0
-            )
-            return_result = chat_completion.choices[0].message.content
+            return_result = self.callback_llm(
+                get_system_prompt_classify(criteria_query), text)
+
             # hacky fix for \r\n\r\n -> \n\n problem
             # maybe will break other documents that dont use \r\n
             return_result = re.sub(
@@ -165,25 +153,7 @@ class Agentfunctions():
         logger.debug("inside get_scope\nparameters:")
         logger.debug(f"{user_query=}\n")
 
-        client = Groq(
-            api_key=GROQ_API_KEY,
-        )
-
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT_GETSCOPE,
-                },
-                {
-                    "role": "user",
-                    "content": user_query,
-                }
-            ],
-            model="llama3-70b-8192",
-            temperature=0.0
-        )
-        return_result = chat_completion.choices[0].message.content
+        return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, user_query)
 
         return return_result
 

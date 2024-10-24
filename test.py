@@ -68,7 +68,7 @@ class TestParser(unittest.TestCase):
 
             # prompt planner
             llm_response = self.agent.call_llm_planner(
-                model, prompt, execute_functions=False)
+                prompt, execute_functions=False)
 
             # extract only the functions from the planner response
             detected = set([func for _, func,
