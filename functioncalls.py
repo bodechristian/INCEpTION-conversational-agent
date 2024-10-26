@@ -3,6 +3,7 @@ import logging
 import os
 import math
 import sys
+import json
 
 from typing import Callable
 
@@ -35,11 +36,10 @@ class Agentfunctions():
             "check_annotations": self.check_annotations,
             "summarize": self.summarize_document,
             "classify_span": self.classify_span,
-            "get_layer": self.get_layer,
             "get_scope": self.get_scope,
             "annotate": self.annotate,
             "highlight": self.highlight,
-            "get_feature": self.get_feature,
+            "get_layer_and_feature": self.get_layer_and_feature,
             "respond": self.respond
         }
 
@@ -55,11 +55,11 @@ class Agentfunctions():
         logger.debug(
             "inside search\tparameters:\tcriteria_query=%s", criteria_query)
 
-    def check_annotations(self, layer: str, feature: str, user_query: str) -> str:
+    def check_annotations(self, layer_and_feature: tuple[str, str], user_query: str) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
-        logger.debug(f"{layer=}\n{feature=}\n{user_query=}")
+        logger.debug(f"{layer_and_feature=}\n{user_query=}")
 
     def summarize_document(self, scope: str) -> str:
         """Classifies text based on the scope"""
@@ -138,20 +138,20 @@ class Agentfunctions():
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         return found_spans
 
-    def highlight(self, layer: str, feature: str, scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
+    def highlight(self, layer_and_feature: tuple[str, str], scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\nparameters:")
-        logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{text_to_highlight=}\n")
+        logger.debug(f"{layer_and_feature=}\n{scope=}\n{text_to_highlight=}\n")
 
-    def annotate(self, layer: str, feature: str, scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
+    def annotate(self, layer_and_feature: tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """First finds most appropriate Layer and Feature from user query
             then annotates on it
             The anno pairs consist of first the text for the feature
             and second the exact corresponding span in the text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside annotate\nparameters:")
-        logger.debug(f"{layer=}\n{feature=}\n{scope=}\n{
+        logger.debug(f"{layer_and_feature=}\n{scope=}\n{
                      annotation_positions=}\n")
 
     def get_scope(self, user_query: str):
@@ -164,15 +164,24 @@ class Agentfunctions():
 
         return return_result
 
-    def get_layer(self, original_user_query: str):
-        logger = logging.getLogger("functions")
-        logger.debug("\ninside get_layer\nparameters:")
-        logger.debug(f"{original_user_query=}\n")
-
-    def get_feature(self, original_user_query: str, layer: str):
+    def get_layer_and_feature(self, original_user_query: str):
         logger = logging.getLogger("functions")
         logger.debug("\ninside get_feature\nparameters:")
-        logger.debug(f"{original_user_query=}\n{layer=}\n")
+        logger.debug(f"{original_user_query=}\n")
+
+        # get possible layers and features
+        landfs = self.softwareenv.get_layers_and_features()
+
+        # call llm
+        return_result = self.callback_llm(
+            get_system_prompt_getlayer(landfs), original_user_query)
+
+        # extract from json response
+        json_response = json.loads(return_result)
+        layer = json_response['layer']
+        feature = json_response['feature']
+
+        return layer, feature
 
     def respond(self, context: str) -> str:
         """Create a response for the user summarizing the functions/intents called 
@@ -184,17 +193,3 @@ class Agentfunctions():
         logger.debug("\ninside respond\nparameters:")
         logger.debug(f"{context=}\n")
         return context
-
-
-if __name__ == "__main__":
-    logger = logging.getLogger("functions")
-    stdout = logging.StreamHandler(stream=sys.stdout)
-    stdout.setLevel(logging.DEBUG)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(stdout)
-
-    softwareenv = Software_environment()
-    functionclass = Agentfunctions(softwareenv)
-    # functionclass.classify_span("Annotate all politicians",
-    #                             "current document")
-    print(functionclass.get_scope("annotate all politicians"))

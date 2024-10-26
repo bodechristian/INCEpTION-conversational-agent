@@ -10,7 +10,7 @@ There are several FUNCTIONS you can call to help you answer the user's query:
 search_context(criteria_query: str) -> str: 
     '''Search for relevent context in the data based on the given criteria'''
 
-check_annotations(user_query: str, layer:str, feature: str) -> str:
+check_annotations(user_query: str, layer_and_feature=tuple[str, str]) -> str:
     '''Iterate over existing annotations to answer a query'''
 
 summarize_document(scope: str) -> str:
@@ -20,10 +20,10 @@ classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int
     '''Looks through the text and returns the start and end position for relevant spans in those documents
         Relevant spans are determined by the criteria_query'''
 
-highlight(layer: str, feature: str, scope: str, text_to_highlight: list[str, tuple[int, int]]):
+highlight(layer_and_feature=tuple[str, str], scope: str, text_to_highlight: list[str, tuple[int, int]]):
     '''Highlights the given spans from the text'''
 
-annotate(layer: str, feature: str, scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]):
+annotate(layer_and_feature=tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]):
     '''Creates new annotations on a given layer at a given feature
         the scope describes which documents are being newly annotated.
         The anno pairs consist of first the categorization for the feature 
@@ -32,11 +32,8 @@ annotate(layer: str, feature: str, scope: str, annotation_positions: list[tuple[
 get_scope(user_query: str) -> str:
     ''' Returns the scope. By default this is 'current document', but can also be 'all documents' '''
 
-get_layer(original_user_query: str) -> str:
-    '''Returns the annotation layer that the user is most likely refering to for new annotations'''
-
-get_feature(original_user_query: str, layer: str) -> str:
-    '''Returns the annotation feature on a specific layer that the user is most likely refering to for new annotations'''
+get_layer_and_feature(original_user_query: str) -> str:
+    '''Returns the annotation layer and feature that the user is most likely refering to for new annotations'''
 
 respond(context: str):
     ''' Creates a response to the user with the given context
@@ -59,10 +56,9 @@ Input:
 Output:
     $1 = get_scope(user_query="annotate every animal as such")
     $2 = classify_span(criteria_query="animal", scope=$1)
-    $3 = get_layer(original_user_query="annotate every animal as such")
-    $4 = get_feature(original_user_query="annotate every animal as such", layer=$3)
-    $5 = annotate(layer=$3, feature=$4, scope=$1, annotation_positions=$2)
-    $6 = respond(context="I Annotated every animal")
+    $3 = get_layer_and_feature(original_user_query="annotate every animal as such")
+    $4 = annotate(layer_and_feature=$3, scope=$1, annotation_positions=$2)
+    $5 = respond(context="I Annotated every animal")
 ```
 """
 
@@ -101,6 +97,24 @@ Respond only with either 'current document' or 'all documents'. By default the u
 Only respond with 'all documents' if the user specifically mentions it.
 
 user_query:"""
+
+
+def get_system_prompt_getlayer(landfs):
+    lst_layer_and_features = []
+    for k in landfs.keys():
+        for v in landfs[k]:
+            lst_layer_and_features.append(f"{k}: {v}")
+    return f"""You are an assistant in an annotating software. Annotations are made on different layers. Each layer has features.
+Your job is to determine what layer and feature combination is best suited for a given annotation task. Here are the possible combinations:
+{"\n".join(lst_layer_and_features)}
+
+Respond in the following json format:
+{{
+    "layer": ..,
+    "feature": ..
+}}
+"""
+
 
 LOGGER_PLANNER_RESPONSE = """
 response: 
