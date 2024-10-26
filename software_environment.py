@@ -1,3 +1,4 @@
+from collections import defaultdict
 import cassis
 
 from os import getcwd, listdir
@@ -53,7 +54,15 @@ class Software_environment():
             return
         self.documents[id] = cas
 
+    def get_layers_and_features(self):
+        """Returns layers and their features in a dictionary
+        format: {layer1: [feature1, feature2], layer2: [feature3], ...}"""
+        landfs = defaultdict(list)
+        for f in self.get_current_document().select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
+            landfs[f.layer.name].append(f.name)
+        return landfs
+
 
 if __name__ == "__main__":
     a = Software_environment()
-    print(a.get_documents())
+    print(a.get_layers_and_features())
