@@ -4,6 +4,7 @@ import os
 
 from prompts import *
 
+from cerebras.cloud.sdk import Cerebras
 from parser import Dollarparser
 from functioncalls import Agentfunctions
 from software_environment import Software_environment
@@ -13,28 +14,36 @@ from dotenv import load_dotenv
 
 class Agent():
 
-    def __init__(self, model="llama3-70b-8192") -> None:
+    # cerebras: llama3.1-70b, groq:llama3-70b-8192
+    def __init__(self, model="llama3.1-70b", client="cerebras") -> None:
         load_dotenv()
         self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+        self.CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
 
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
         self.logger = logging.getLogger("output")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(stdout)
-        # l = logging.getLogger("functions")
-        # l.setLevel(logging.DEBUG)
-        # l.addHandler(stdout)
+        l = logging.getLogger("functions")
+        l.setLevel(logging.DEBUG)
+        l.addHandler(stdout)
 
         # initialize api and software env
         self.model = model
         self.softwareenv = Software_environment()
         self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
         self.parser = Dollarparser(self.functionclass)
-        self.client = Groq(
-            api_key=self.GROQ_API_KEY,
-        )
+
+        if client == "groq":
+            self.client = Groq(
+                api_key=self.GROQ_API_KEY,
+            )
+        elif client == "cerebras":
+            self.client = Cerebras(
+                api_key=os.environ.get("CEREBRAS_API_KEY"),
+            )
 
     def call_llm(self, system_prompt, user_prompt):
         chat_completion = self.client.chat.completions.create(

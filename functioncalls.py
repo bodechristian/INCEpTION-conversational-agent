@@ -101,7 +101,7 @@ class Agentfunctions():
         found_spans = []
         cnt_docs = 0
 
-        for text in text_chunks[:4]:
+        for text in text_chunks:
             return_result = self.callback_llm(
                 get_system_prompt_classify(criteria_query), text)
 
