@@ -84,6 +84,8 @@ class Agentfunctions():
         # get text from doc/cas
         if scope == "current document":
             documenttext = self.softwareenv.get_current_documenttext()
+        elif scope == "all documents":
+            documenttext = self.softwareenv.get_current_documenttext()
         # chunk texts
         # long texts may go out of context window and make llm ignore the prompt 'only respond with embedded text'
         # long texts also make llm embelish (e.g. change 'Clinton' to 'Hillary Clinton')

@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # check if user prompt was given
     user_query = USER_QUERY_DEFAULT
     if len(sys.argv) > 1:
-        USER_QUERY_DEFAULT = sys.argv[1]
+        user_query = sys.argv[1]
 
     # create conversational agent
     agent = Agent()
