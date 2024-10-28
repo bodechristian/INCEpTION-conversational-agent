@@ -4,6 +4,8 @@ import os
 import logging
 import sys
 import yaml
+import json
+import time
 
 from os import getcwd
 from os.path import join
@@ -33,10 +35,6 @@ class TestParser(unittest.TestCase):
                 except yaml.YAMLError as exc:
                     print(exc)
 
-        # set up Groq API client
-        cls.client = Groq(
-            api_key=GROQ_API_KEY,
-        )
         cls.agent = Agent()
 
         # set up logger
@@ -46,6 +44,9 @@ class TestParser(unittest.TestCase):
         cls.logger.setLevel(logging.DEBUG)
         cls.logger.addHandler(stdout)
 
+        # set up logging to file
+        cls.logged_data = {}
+
     def test_expected_functions(self):
         # the models and files to test the planner on
         models = ["llama3-70b-8192"]
@@ -54,8 +55,18 @@ class TestParser(unittest.TestCase):
 
         for file in files[:1]:
             for model in models:
-                # self.helper_planner(file, model)
+                # logging to file
+                self.logged_data = {
+                    "file": file,
+                    "model": model,
+                    "tests": []
+                }
+
+                self.helper_planner(file, model)
                 self.helper_scope(file, model)
+                # Convert and write JSON object to file
+                with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
+                    json.dump(self.logged_data, outfile)
 
     def helper_planner(self, file, model):
         self.logger.info(
@@ -85,6 +96,11 @@ class TestParser(unittest.TestCase):
             self.logger.debug("Correct Result?: %s", correct_result)
         self.logger.info(
             "\n%d/%d functions were correctly called from the planner.", correct_results, i+1)
+        self.logged_data["tests"].append({
+            "test_name": "planner",
+            "correct": correct_results,
+            "amount": i+1
+        })
 
     def helper_scope(self, file, model):
         self.logger.info(
@@ -108,6 +124,11 @@ class TestParser(unittest.TestCase):
             self.logger.debug("Correct Result?: %s", scope == pred_scope)
         self.logger.info(
             "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
+        self.logged_data["tests"].append({
+            "test_name": "scope",
+            "correct": correct_results,
+            "amount": i+1
+        })
 
 
 if __name__ == "__main__":
