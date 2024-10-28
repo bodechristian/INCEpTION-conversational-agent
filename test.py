@@ -72,6 +72,7 @@ class TestParser(unittest.TestCase):
         self.logger.info(
             "\nTesting correct planning on %s with model %s", file, model)
         correct_results = 0
+        runs = []
         for i, testcase in enumerate(self.data[file]["testcases"]):
             # extract columns from yaml
             prompt = testcase["prompt"]
@@ -88,6 +89,11 @@ class TestParser(unittest.TestCase):
             # see if correct functions were called (order irrelevant)
             correct_result = detected == expected_results
             correct_results += correct_result
+            runs.append({
+                "prompt": prompt,
+                "expected": ", ".join(sorted(list(expected_results), key=str.lower)),
+                "predicted": ", ".join(sorted(list(detected), key=str.lower)),
+            })
 
             # logging
             self.logger.debug("\nAnalyzing prompt: %s", prompt)
@@ -99,13 +105,15 @@ class TestParser(unittest.TestCase):
         self.logged_data["tests"].append({
             "test_name": "planner",
             "correct": correct_results,
-            "amount": i+1
+            "amount": i+1,
+            "runs": runs,
         })
 
     def helper_scope(self, file, model):
         self.logger.info(
             "\nTesting scope detection on %s with model %s", file, model)
         correct_results = 0
+        runs = []
         for i, testcase in list(enumerate(self.data[file]["testcases"]))[:4]:
             # extract columns from yaml
             prompt = testcase["prompt"]
@@ -122,12 +130,19 @@ class TestParser(unittest.TestCase):
             self.logger.debug("Expected scope: %s", scope)
             self.logger.debug("Detected scope: %s", pred_scope)
             self.logger.debug("Correct Result?: %s", scope == pred_scope)
+
+            runs.append({
+                "prompt": prompt,
+                "expected": scope,
+                "predicted": pred_scope,
+            })
         self.logger.info(
             "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
         self.logged_data["tests"].append({
             "test_name": "scope",
             "correct": correct_results,
-            "amount": i+1
+            "amount": i+1,
+            "runs": runs,
         })
 
 

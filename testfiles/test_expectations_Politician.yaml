@@ -3,8 +3,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
@@ -15,8 +14,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - highlight
       - respond
     scope: all documents
@@ -27,8 +25,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
@@ -39,8 +36,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
@@ -51,8 +47,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - annotate
       - respond
     scope: current document
@@ -63,8 +58,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - annotate
       - respond
     scope: current document
@@ -99,8 +93,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
@@ -127,8 +120,7 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer
-      - get_feature
+      - get_layer_and_feature
       - annotate
       - respond
     scope: current document
