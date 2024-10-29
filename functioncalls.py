@@ -103,7 +103,7 @@ class Agentfunctions():
         found_spans = []
         cnt_docs = 0
 
-        for text in text_chunks[:4]:
+        for text in text_chunks:
             return_result = self.callback_llm(
                 get_system_prompt_classify(criteria_query), text)
 
@@ -155,6 +155,20 @@ class Agentfunctions():
         logger.debug("\ninside annotate\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{scope=}\n{
                      annotation_positions=}\n")
+
+        # load document
+        cas = self.softwareenv.get_current_document()
+        layer, feature = layer_and_feature
+        # retrieve the layer from cas
+        Token = cas.typesystem.get_type(layer)
+        # iterate over spans
+        for classification, (start, end) in annotation_positions:
+            # create the token
+            t = Token(begin=start, end=end)
+            # set feature to classification
+            t[feature] = classification
+            cas.add(t)
+        cas.to_json('temp.json')
 
     def get_scope(self, user_query: str):
         """analyzes the user_query and returns the document id(s) of the relevant document"""
