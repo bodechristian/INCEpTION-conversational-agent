@@ -146,6 +146,20 @@ class Agentfunctions():
         logger.debug("\ninside highlight\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{scope=}\n{text_to_highlight=}\n")
 
+        # load document
+        cas = self.softwareenv.get_current_document()
+        layer, feature = layer_and_feature
+        # retrieve the layer from cas
+        Token = cas.typesystem.get_type(layer)
+        # iterate over spans
+        for classification, (start, end) in text_to_highlight:
+            # create the token
+            t = Token(begin=start, end=end)
+            # set feature to classification
+            t[feature] = classification
+            cas.add(t)
+        cas.to_json('tempp.json')
+
     def annotate(self, layer_and_feature: tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """First finds most appropriate Layer and Feature from user query
             then annotates on it
