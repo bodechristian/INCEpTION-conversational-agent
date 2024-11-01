@@ -53,6 +53,7 @@ class TestParser(unittest.TestCase):
         files = ["test_expectations_Cheetah.yaml",
                  "test_expectations_Politician.yaml"]
 
+        all_logged_data = []
         for file in files:
             for model in models:
                 # logging to file
@@ -65,9 +66,10 @@ class TestParser(unittest.TestCase):
                 self.helper_planner(file, model)
                 self.helper_scope(file, model)
                 self.helper_layer_and_feature(file, model)
-                # Convert and write JSON object to file
-                with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
-                    json.dump(self.logged_data, outfile)
+                all_logged_data.append(self.logged_data)
+        # Convert and write JSON object to file
+        with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
+            json.dump(all_logged_data, outfile)
 
     def helper_planner(self, file, model):
         self.logger.info(
