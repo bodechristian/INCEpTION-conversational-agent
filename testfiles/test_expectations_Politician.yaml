@@ -1,5 +1,5 @@
 testcases:
-  - prompt: Find all politicians.
+  - prompt: Find all Politicians.
     expectations:
       - get_scope
       - classify_span
@@ -10,7 +10,7 @@ testcases:
     layer: People
     feature: Occupation
 
-  - prompt: Identify all politicians in all documents.
+  - prompt: Identify all Politicians in all documents.
     expectations:
       - get_scope
       - classify_span
@@ -18,10 +18,10 @@ testcases:
       - highlight
       - respond
     scope: all documents
-    layer: politicians
+    layer: Politicians
     feature: Name
 
-  - prompt: Locate all politicians in the current document.
+  - prompt: Locate all Politicians in the current document.
     expectations:
       - get_scope
       - classify_span
@@ -29,10 +29,10 @@ testcases:
       - highlight
       - respond
     scope: current document
-    layer: politicians
+    layer: Politicians
     feature: Name
 
-  - prompt: Where in the document are the politicians?
+  - prompt: Where in the document are the Politicians?
     expectations:
       - get_scope
       - classify_span
@@ -40,10 +40,10 @@ testcases:
       - highlight
       - respond
     scope: current document
-    layer: politicians
+    layer: Politicians
     feature: Name
 
-  - prompt: Annotate all politicians.
+  - prompt: Annotate all Politicians.
     expectations:
       - get_scope
       - classify_span
@@ -51,10 +51,10 @@ testcases:
       - annotate
       - respond
     scope: current document
-    layer: politicians
+    layer: Politicians
     feature: Name
 
-  - prompt: Annotate all politicians as named entities and assign the label POLITICIAN.
+  - prompt: Annotate all Politicians as named entities and assign the label POLITICIAN.
     expectations:
       - get_scope
       - classify_span
@@ -62,7 +62,7 @@ testcases:
       - annotate
       - respond
     scope: current document
-    layer: politicians
+    layer: Politicians
     feature: Name
     label: POLITICIAN
 
@@ -100,7 +100,7 @@ testcases:
     layer:
     feature:
 
-  - prompt: What are the most important facts about politicians?
+  - prompt: What are the most important facts about Politicians?
     expectations:
       - search_context
       - respond
@@ -108,7 +108,7 @@ testcases:
     layer:
     feature:
 
-  - prompt: Where in this document are politicians accused of bribery?
+  - prompt: Where in this document are Politicians accused of bribery?
     expectations:
       - search_context
       - respond
@@ -116,7 +116,7 @@ testcases:
     layer:
     feature:
 
-  - prompt: Annotate politicians with their respective party
+  - prompt: Annotate Politicians with their respective Party
     expectations:
       - get_scope
       - classify_span
@@ -124,8 +124,8 @@ testcases:
       - annotate
       - respond
     scope: current document
-    layer: politicians
-    feature: party
+    layer: Politicians
+    feature: Party
 
   - prompt: Who did Hillary Clinton run against?
     expectations:

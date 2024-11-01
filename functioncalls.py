@@ -103,7 +103,7 @@ class Agentfunctions():
         found_spans = []
         cnt_docs = 0
 
-        for text in text_chunks:
+        for text in text_chunks[:4]:
             return_result = self.callback_llm(
                 get_system_prompt_classify(criteria_query), text)
 
@@ -174,17 +174,17 @@ class Agentfunctions():
         cas = self.softwareenv.get_current_document()
         layer, feature = layer_and_feature
         # retrieve the layer from cas
-        Token = cas.typesystem.get_type(layer)
+        layertype = cas.typesystem.get_type(layer)
         # iterate over spans
         for classification, (start, end) in annotation_positions:
             # create the token
-            t = Token(begin=start, end=end)
+            t = layertype(begin=start, end=end)
             # set feature to classification
             t[feature] = classification
             cas.add(t)
         cas.to_json('temp.json')
 
-    def get_scope(self, user_query: str):
+    def get_scope(self, user_query: str) -> tuple[str, str]:
         """analyzes the user_query and returns the document id(s) of the relevant document"""
         logger = logging.getLogger("functions")
         logger.debug("inside get_scope\nparameters:")
@@ -205,7 +205,6 @@ class Agentfunctions():
         # call llm
         return_result = self.callback_llm(
             get_system_prompt_getlayer(landfs), original_user_query)
-
         # extract from json response
         json_response = json.loads(return_result)
         layer = json_response['layer']

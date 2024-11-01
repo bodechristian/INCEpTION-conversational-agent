@@ -42,7 +42,7 @@ class Agent():
             )
         elif client == "cerebras":
             self.client = Cerebras(
-                api_key=os.environ.get("CEREBRAS_API_KEY"),
+                api_key=self.CEREBRAS_API_KEY,
             )
 
     def call_llm(self, system_prompt, user_prompt):

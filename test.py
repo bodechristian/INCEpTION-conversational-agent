@@ -53,7 +53,7 @@ class TestParser(unittest.TestCase):
         files = ["test_expectations_Cheetah.yaml",
                  "test_expectations_Politician.yaml"]
 
-        for file in files[:1]:
+        for file in files:
             for model in models:
                 # logging to file
                 self.logged_data = {
@@ -64,6 +64,7 @@ class TestParser(unittest.TestCase):
 
                 self.helper_planner(file, model)
                 self.helper_scope(file, model)
+                self.helper_layer_and_feature(file, model)
                 # Convert and write JSON object to file
                 with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
                     json.dump(self.logged_data, outfile)
@@ -93,6 +94,7 @@ class TestParser(unittest.TestCase):
                 "prompt": prompt,
                 "expected": ", ".join(sorted(list(expected_results), key=str.lower)),
                 "predicted": ", ".join(sorted(list(detected), key=str.lower)),
+                "result": correct_result,
             })
 
             # logging
@@ -114,7 +116,7 @@ class TestParser(unittest.TestCase):
             "\nTesting scope detection on %s with model %s", file, model)
         correct_results = 0
         runs = []
-        for i, testcase in list(enumerate(self.data[file]["testcases"]))[:4]:
+        for i, testcase in list(enumerate(self.data[file]["testcases"])):
             # extract columns from yaml
             prompt = testcase["prompt"]
             scope = testcase["scope"]
@@ -135,6 +137,7 @@ class TestParser(unittest.TestCase):
                 "prompt": prompt,
                 "expected": scope,
                 "predicted": pred_scope,
+                "result": scope == pred_scope,
             })
         self.logger.info(
             "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
@@ -142,6 +145,57 @@ class TestParser(unittest.TestCase):
             "test_name": "scope",
             "correct": correct_results,
             "amount": i+1,
+            "runs": runs,
+        })
+
+    def helper_layer_and_feature(self, file, model):
+        self.logger.info(
+            "\nTesting layer and feature detection on %s with model %s", file, model)
+        correct_results = 0
+        runs = []
+        skipped_tests = 0
+        for i, testcase in list(enumerate(self.data[file]["testcases"])):
+            # extract columns from yaml
+            prompt = testcase["prompt"]
+            layer = testcase["layer"]
+            feature = testcase["feature"]
+
+            # if layer empty, that meanns that testcase does not use a layer
+            # so skip testcase
+            if layer is None or feature is None:
+                skipped_tests += 1
+                continue
+
+            # get prediction
+            pred_layer, pred_feature = self.agent.functionclass.get_layer_and_feature(
+                original_user_query=prompt)
+            # remove prefix from layer name
+            pred_layer = pred_layer.split(".")[-1]
+
+            # check prediction to expectation
+            correct_result = (layer == pred_layer and feature == pred_feature)
+            correct_results += correct_result
+
+            # logging
+            self.logger.debug("\nAnalyzing prompt: %s", prompt)
+            self.logger.debug(
+                "Expected layer and feature: %s, %s", layer, feature)
+            self.logger.debug(
+                "Detected layer and feature: %s, %s", pred_layer, pred_feature)
+            self.logger.debug("Correct Result?: %s", correct_result)
+
+            runs.append({
+                "prompt": prompt,
+                "expected": ", ".join((layer, feature)),
+                "predicted": ", ".join((pred_layer, pred_feature)),
+                "result": correct_result,
+            })
+        self.logger.info(
+            "\n%d/%d layers and features were correctly predicted.", correct_results, i+1-skipped_tests)
+        self.logged_data["tests"].append({
+            "test_name": "layers and features",
+            "correct": correct_results,
+            "amount": i+1-skipped_tests,
             "runs": runs,
         })
 

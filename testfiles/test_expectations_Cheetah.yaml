@@ -8,7 +8,7 @@ testcases:
       - respond
     scope: all documents
     layer: Animal
-    feature: species
+    feature: Species
 
   - prompt: How fast does a cheetah run?
     expectations:
@@ -35,7 +35,7 @@ testcases:
       - respond
     scope: current document
     layer: Animal
-    feature: number of legs
+    feature: numberoflegs
 
   - prompt: Check if every annotation with the dog label also accurately describes the animal cheetah
     expectations:
@@ -69,7 +69,7 @@ testcases:
       - respond
     scope: current document
     layer: Animal
-    feature: species
+    feature: Species
 
   - prompt: Annotate every mention of cheetah
     expectations:
@@ -80,7 +80,7 @@ testcases:
       - respond
     scope: current document
     layer: Animal
-    feature: species
+    feature: Species
 
   - prompt: Annotate every mention of cheetah as 'cat'
     expectations:
@@ -91,7 +91,7 @@ testcases:
       - respond
     scope: current document
     layer: Animal
-    feature: species
+    feature: Species
 
   - prompt: Summarize the text
     expectations:

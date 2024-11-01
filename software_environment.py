@@ -15,7 +15,7 @@ class Software_environment():
     def __init__(self):
         self.load_docs()
         if len(self.documents) > 0:
-            self.current_document_id = 1
+            self.current_document_id = 0
 
     def load_docs(self):
         """loads all documents in the given documents folder"""
@@ -58,8 +58,19 @@ class Software_environment():
         """Returns layers and their features in a dictionary
         format: {layer1: [feature1, feature2], layer2: [feature3], ...}"""
         landfs = defaultdict(list)
-        for f in self.get_current_document().select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
-            landfs[f.layer.name].append(f.name)
+        cas = self.get_current_document()
+        for f in cas.select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
+            if f.layer.name.startswith('webanno'):
+                landfs[f.layer.name].append(f.name)
+        # for l in landfs.keys():
+        #     try:
+        #         parentype = cas.typesystem.get_type(l)
+        #     except:
+        #         parent_type = cas.typesystem.create_type(name=l)
+        #         for f in landfs[l]:
+        #             cas.typesystem.create_feature(
+        #                 domainType=parent_type, name=f, rangeType=cassis.TYPE_NAME_STRING)
+
         return landfs
 
 
