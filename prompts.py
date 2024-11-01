@@ -105,7 +105,8 @@ def get_system_prompt_getlayer(landfs):
         for v in landfs[k]:
             lst_layer_and_features.append(f"{k}: {v}")
     return f"""You are an assistant in an annotating software. Annotations are made on different layers. Each layer has features.
-Your job is to determine what layer and feature combination is best suited for a given annotation task. Here are the possible combinations:
+Your job is to determine what layer and feature combination is best suited for a given annotation task. You can only choose one best-fitting combination.
+Here are the possible combinations:
 {"\n".join(lst_layer_and_features)}
 
 Respond in the following json format:
