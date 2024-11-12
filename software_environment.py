@@ -1,18 +1,27 @@
 from collections import defaultdict
 import cassis
+import os
 
 from os import getcwd, listdir
 from os.path import join
+from dotenv import load_dotenv
+from langchain_community.document_loaders import TextLoader
+from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_cohere import CohereEmbeddings
 
 
 class Software_environment():
     # id: cas_json
     documents = {}
+    vector_stores = {}
     next_id = 0
     current_document_id = -1
     folderpath = join(getcwd(), "documents")
 
     def __init__(self):
+        load_dotenv()
+        self.COHERE_API_KEY = os.getenv('COHERE_API_KEY')
         self.load_docs()
         if len(self.documents) > 0:
             self.current_document_id = 0
@@ -21,7 +30,21 @@ class Software_environment():
         """loads all documents in the given documents folder"""
         for filename in listdir(self.folderpath):
             with open(join(self.folderpath, filename), 'rb') as f:
-                self.documents[self.next_id] = cassis.load_cas_from_json(f)
+                cas = cassis.load_cas_from_json(f)
+                self.documents[self.next_id] = cas
+
+                # Load the document, split it into chunks, embed each chunk and load it into the vector store.
+                text_splitter = CharacterTextSplitter(
+                    chunk_size=1, chunk_overlap=0, separator="\n")
+                # text_splitter = RecursiveCharacterTextSplitter(
+                #     chunk_size=1000, chunk_overlap=200, add_start_index=True
+                # )
+                documents = text_splitter.split_text(cas.sofa_string)
+                embeddings = CohereEmbeddings(
+                    cohere_api_key=self.COHERE_API_KEY, model="embed-english-v3.0")
+                self.vector_stores[self.next_id] = Chroma.from_texts(
+                    documents, embeddings)
+
                 self.next_id += 1
 
     def get_documenttext_by_id(self, id: int):
