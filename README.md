@@ -7,3 +7,6 @@ To use groq API, add a .env with `GROQ_API_KEY="[YOUR_API_KEY]"` first. Or to us
 
 Then use e.g. `python agent.py "tell me a joke"` to see the planner and the response.
 
+## Visualization
+
+Annotations are currently written to `temp.json` at the top level. To use the visualization (https://github.com/bodechristian/CAS-visualization), point it to that .json file.
