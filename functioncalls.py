@@ -137,8 +137,20 @@ class Agentfunctions():
                 true_start = m.start()-cnt + cnt_docs
                 # add the number of tag-symbols and letters in tags
                 cnt += 5 + len(m.group(1)) + len(m.group(3))
-                found_spans.append(
-                    (m.group(1), (true_start, true_start + len(m.group(2)))))
+                if (documenttext[true_start:true_start + len(m.group(2))] == m.group(2)):
+                    found_spans.append(
+                        (m.group(1), (true_start, true_start + len(m.group(2)))))
+                else:  # index is incorrect
+                    # find all text mentions
+                    matches = re.finditer(m.group(2), documenttext)
+                    # check if match was found
+                    if matches:
+                        # use match that has closest index
+                        best_match = sorted(
+                            matches, key=lambda el: abs(el.start()-true_start))[0]
+                        true_start = best_match.start()
+                        found_spans.append(
+                            (m.group(1), (true_start, true_start + len(m.group(2)))))
             cnt_docs += len(text)
 
         # safety test, applying start:end onto the initial text
