@@ -34,11 +34,11 @@ class Software_environment():
                 self.documents[self.next_id] = cas
 
                 # Load the document, split it into chunks, embed each chunk and load it into the vector store.
-                text_splitter = CharacterTextSplitter(
-                    chunk_size=1, chunk_overlap=0, separator="\n")
-                # text_splitter = RecursiveCharacterTextSplitter(
-                #     chunk_size=1000, chunk_overlap=200, add_start_index=True
-                # )
+                # text_splitter = CharacterTextSplitter(
+                #     chunk_size=1, chunk_overlap=0, separator="\n")
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000, chunk_overlap=200, add_start_index=True
+                )
                 documents = text_splitter.split_text(cas.sofa_string)
                 embeddings = CohereEmbeddings(
                     cohere_api_key=self.COHERE_API_KEY, model="embed-english-v3.0")
@@ -52,6 +52,9 @@ class Software_environment():
 
     def get_document_by_id(self, id: int):
         return self.documents[id]
+
+    def get_vectorstore_by_id(self, id: int):
+        return self.vector_stores[id]
 
     def get_documents(self):
         return self.documents
@@ -67,6 +70,9 @@ class Software_environment():
 
     def get_current_documenttext(self):
         return self.documents[self.current_document_id].sofa_string
+
+    def get_current_vectorstore(self):
+        return self.vector_stores[self.current_document_id]
 
     def update_current_document(self, cas):
         self.documents[self.current_document_id] = cas

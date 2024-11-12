@@ -54,6 +54,13 @@ class Agentfunctions():
         logger = logging.getLogger("functions")
         logger.debug(
             "inside search\tparameters:\tcriteria_query=%s", criteria_query)
+        # get relevant chunks from vector store
+        contxt = self.softwareenv.get_current_vectorstore().similarity_search(criteria_query)
+        # create return string
+        contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i,
+                                     el in enumerate(contxt)])
+
+        return contxt_string
 
     def check_annotations(self, layer_and_feature: tuple[str, str], user_query: str) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
@@ -212,7 +219,7 @@ class Agentfunctions():
 
         return layer, feature
 
-    def respond(self, context: str) -> str:
+    def respond(self, original_query: str, context: str) -> str:
         """Create a response for the user summarizing the functions/intents called 
             and the previous output
             Afterwards respond in the chat window"""
@@ -221,4 +228,7 @@ class Agentfunctions():
         logger = logging.getLogger("functions")
         logger.debug("\ninside respond\nparameters:")
         logger.debug(f"{context=}\n")
-        return context
+
+        return_result = self.callback_llm(
+            get_system_prompt_respond(context), original_query)
+        return return_result

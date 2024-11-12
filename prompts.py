@@ -35,7 +35,7 @@ get_scope(user_query: str) -> str:
 get_layer_and_feature(original_user_query: str) -> str:
     '''Returns the annotation layer and feature that the user is most likely refering to for new annotations'''
 
-respond(context: str):
+respond(original_query:str, context: str):
     ''' Creates a response to the user with the given context
         If no function call is needed, just immediately respond'''
 
@@ -47,8 +47,8 @@ Example 1:
 Input:
     How fast does a cheetah run?
 Output:
-    $1 = search_context(criteria_query="How fast does a cheetah run?")
-    $2 = respond(context=$1)
+    $1 = search_context(criteria_query="cheetah run speed")
+    $2 = respond(original_query="How fast does a cheetah run?", context=$1)
 
 Example 2:
 Input:
@@ -58,7 +58,7 @@ Output:
     $2 = classify_span(criteria_query="animal", scope=$1)
     $3 = get_layer_and_feature(original_user_query="annotate every animal as such")
     $4 = annotate(layer_and_feature=$3, scope=$1, annotation_positions=$2)
-    $5 = respond(context="I Annotated every animal")
+    $5 = respond(original_query="Annotate every animal as such",context="I Annotated every animal")
 ```
 """
 
@@ -97,6 +97,15 @@ Respond only with either 'current document' or 'all documents'. By default the u
 Only respond with 'all documents' if the user specifically mentions it.
 
 user_query:"""
+
+
+def get_system_prompt_respond(contxt):
+    return f"""You are an assistent to answer a user's query. You get additional context that may or may not help you answer the user's query. Answer the user's query.
+
+Context:
+{contxt}
+
+User's query:"""
 
 
 def get_system_prompt_getlayer(landfs):

@@ -24,10 +24,10 @@ class Agent():
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
         self.logger = logging.getLogger("output")
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         self.logger.addHandler(stdout)
         l = logging.getLogger("functions")
-        l.setLevel(logging.DEBUG)
+        l.setLevel(logging.INFO)
         l.addHandler(stdout)
 
         # initialize api and software env
