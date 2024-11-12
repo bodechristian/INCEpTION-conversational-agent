@@ -24,7 +24,7 @@ class Software_environment():
         self.COHERE_API_KEY = os.getenv('COHERE_API_KEY')
         self.load_docs()
         if len(self.documents) > 0:
-            self.current_document_id = 0
+            self.current_document_id = 1
 
     def load_docs(self):
         """loads all documents in the given documents folder"""

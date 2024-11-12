@@ -34,7 +34,7 @@ class Agentfunctions():
             "chat": self.chat,
             "search_context": self.search_context,
             "check_annotations": self.check_annotations,
-            "summarize": self.summarize_document,
+            "summarize_document": self.summarize_document,
             "classify_span": self.classify_span,
             "get_scope": self.get_scope,
             "annotate": self.annotate,
@@ -177,7 +177,7 @@ class Agentfunctions():
             # set feature to classification
             t[feature] = classification
             cas.add(t)
-        cas.to_json('tempp.json')
+        cas.to_json('temp.json')
 
     def annotate(self, layer_and_feature: tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """First finds most appropriate Layer and Feature from user query
