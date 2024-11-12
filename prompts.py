@@ -100,7 +100,9 @@ user_query:"""
 
 
 def get_system_prompt_respond(contxt):
-    return f"""You are an assistent to answer a user's query. You get additional context that may or may not help you answer the user's query. Answer the user's query.
+    return f"""You are a conversational assistent in a bigger system. Your job is to respond to the user after already completing multiple steps.
+You get additional context from the previous steps that another assistent in the bigger system completed.
+The context may describe what you've already done or help you answer the query. Respond to the user from the perspective of the bigger system.
 
 Context:
 {contxt}
