@@ -70,7 +70,7 @@ class Agent():
         # printing response
         self.logger.debug("System prompt:\n%s", SYSTEM_PROMPT_PLANNER)
         self.logger.info(LOGGER_PLANNER_INPUT,
-                         USER_QUERY_DEFAULT, llm_response)
+                         user_query, llm_response)
         if execute_functions:
             # call parser and functions
             parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(
