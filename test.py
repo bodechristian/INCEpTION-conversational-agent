@@ -74,6 +74,7 @@ class TestParser(unittest.TestCase):
     def helper_planner(self, file, model):
         self.logger.info(
             "\nTesting correct planning on %s with model %s", file, model)
+        start_time = time.time()
         correct_results = 0
         runs = []
         for i, testcase in enumerate(self.data[file]["testcases"]):
@@ -82,8 +83,10 @@ class TestParser(unittest.TestCase):
             expected_results = set(testcase["expectations"])
 
             # prompt planner
+            start_time_testcase = time.time()
             llm_response = self.agent.call_llm_planner(
                 prompt, execute_functions=False)
+            time_testcase = time.time() - start_time_testcase
 
             # extract only the functions from the planner response
             detected = set([func for _, func,
@@ -97,6 +100,7 @@ class TestParser(unittest.TestCase):
                 "expected": ", ".join(sorted(list(expected_results), key=str.lower)),
                 "predicted": ", ".join(sorted(list(detected), key=str.lower)),
                 "result": correct_result,
+                "duration": time_testcase,
             })
 
             # logging
@@ -111,11 +115,13 @@ class TestParser(unittest.TestCase):
             "correct": correct_results,
             "amount": i+1,
             "runs": runs,
+            "duration": time.time() - start_time,
         })
 
     def helper_scope(self, file, model):
         self.logger.info(
             "\nTesting scope detection on %s with model %s", file, model)
+        start_time = time.time()
         correct_results = 0
         runs = []
         for i, testcase in list(enumerate(self.data[file]["testcases"])):
@@ -124,7 +130,9 @@ class TestParser(unittest.TestCase):
             scope = testcase["scope"]
 
             # get prediction
+            start_time_testcase = time.time()
             pred_scope = self.agent.functionclass.get_scope(prompt)
+            time_testcase = time.time() - start_time_testcase
 
             # check prediction to expectation
             correct_results += scope == pred_scope
@@ -140,6 +148,7 @@ class TestParser(unittest.TestCase):
                 "expected": scope,
                 "predicted": pred_scope,
                 "result": scope == pred_scope,
+                "duration": time_testcase,
             })
         self.logger.info(
             "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
@@ -148,11 +157,13 @@ class TestParser(unittest.TestCase):
             "correct": correct_results,
             "amount": i+1,
             "runs": runs,
+            "duration": time.time() - start_time,
         })
 
     def helper_layer_and_feature(self, file, model):
         self.logger.info(
             "\nTesting layer and feature detection on %s with model %s", file, model)
+        start_time = time.time()
         correct_results = 0
         runs = []
         skipped_tests = 0
@@ -169,8 +180,10 @@ class TestParser(unittest.TestCase):
                 continue
 
             # get prediction
+            start_time_testcase = time.time()
             pred_layer, pred_feature = self.agent.functionclass.get_layer_and_feature(
                 original_user_query=prompt)
+            time_testcase = time.time() - start_time_testcase
             # remove prefix from layer name
             pred_layer = pred_layer.split(".")[-1]
 
@@ -191,6 +204,7 @@ class TestParser(unittest.TestCase):
                 "expected": ", ".join((layer, feature)),
                 "predicted": ", ".join((pred_layer, pred_feature)),
                 "result": correct_result,
+                "duration": time_testcase,
             })
         self.logger.info(
             "\n%d/%d layers and features were correctly predicted.", correct_results, i+1-skipped_tests)
@@ -199,6 +213,7 @@ class TestParser(unittest.TestCase):
             "correct": correct_results,
             "amount": i+1-skipped_tests,
             "runs": runs,
+            "duration": time.time() - start_time
         })
 
 
