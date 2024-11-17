@@ -31,7 +31,6 @@ class Agentfunctions():
         self.callback_llm = callback_llm
 
         self.valid_functions = {
-            "chat": self.chat,
             "search_context": self.search_context,
             "check_annotations": self.check_annotations,
             "summarize_document": self.summarize_document,
@@ -42,11 +41,6 @@ class Agentfunctions():
             "get_layer_and_feature": self.get_layer_and_feature,
             "respond": self.respond
         }
-
-    def chat(self, user_query: str) -> str:
-        "The user wants to chat"
-        logger = logging.getLogger("functions")
-        logger.debug("inside chat\tparameters:\tuser_query=%s", user_query)
 
     def search_context(self, criteria_query: str) -> str:
         """Search for relevent chunks in the text based on the given criteria"""
