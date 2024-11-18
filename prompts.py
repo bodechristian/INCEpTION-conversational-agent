@@ -120,10 +120,11 @@ Your job is to determine what layer and feature combination is best suited for a
 Here are the possible combinations:
 {"\n".join(lst_layer_and_features)}
 
-Respond in the following json format:
+Respond in the following json format with no additional text:
 {{
     "layer": ..,
-    "feature": ..
+    "feature": ..,
+    "reasoning": ..,
 }}
 """
 
