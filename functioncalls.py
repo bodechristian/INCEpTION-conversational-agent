@@ -49,10 +49,18 @@ class Agentfunctions():
         logger.debug(
             "inside search\tparameters:\tcriteria_query=%s", criteria_query)
         # get relevant chunks from vector store
-        contxt = self.softwareenv.get_current_vectorstore().similarity_search(criteria_query)
+        contxt = self.softwareenv.get_vectorstore().similarity_search(criteria_query)  # , filter={"doc_id": 0}
+        [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
+
+        # highlight best context
+        best_contxt = contxt[0]
+        _scope = self.get_scope(user_query=criteria_query)
+        _landf = self.get_layer_and_feature(original_user_query=criteria_query)
+        self.highlight(layer_and_feature=_landf, scope=_scope, text_to_highlight=[
+                       (criteria_query, (best_contxt.metadata["start_index"], best_contxt.metadata["start_index"] + len(best_contxt.page_content)))])
+
         # create return string
-        contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i,
-                                     el in enumerate(contxt)])
+        contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i, el in enumerate(contxt)])
 
         return contxt_string
 
