@@ -86,8 +86,8 @@ class Agentfunctions():
         return return_result
 
     def classify_span(self, criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
-        """Iterates over text determined by the scope and classifies test based on the criteria
-            First tuple element is the criteria, second is the classified text"""
+        """Iterates over text determined by the scope and classifies text based on the criteria
+            First tuple element is the categorization, second is start and end index of the classified text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
@@ -107,7 +107,6 @@ class Agentfunctions():
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=0, separators=["\r\n\r\n", "\n"], keep_separator="end", strip_whitespace=False)
         text_chunks = text_splitter.split_text(documenttext)
-        # maybe make llm call more robust/resilient by seeing if length pre and post embed are the same (after erasing tags again)
 
         # the found spans in the following format
         # [(categorization, (start, end)), ..]
@@ -229,9 +228,16 @@ class Agentfunctions():
         return_result = self.callback_llm(
             get_system_prompt_getlayer(landfs), original_user_query)
         # extract from json response
-        json_response = json.loads(return_result)
-        layer = json_response['layer']
-        feature = json_response['feature']
+        try:
+            json_response = json.loads(return_result)
+            layer = json_response['layer']
+            feature = json_response['feature']
+        except:
+            # layer or feature does not exist in response json
+            logger.error("Layer or feature was not correctly recognized in response json")
+            # default to random layer + feature
+            layer = list(landfs.keys())[0]
+            feature = landfs[layer][0]
 
         return layer, feature
 
