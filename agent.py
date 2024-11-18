@@ -1,6 +1,7 @@
 import sys
 import logging
 import os
+import time
 
 from prompts import *
 
@@ -79,6 +80,13 @@ class Agent():
         return llm_response
 
 
+def main():
+    # wait for user input
+    user_prompt = input("Enter prompt: ")
+    # call the llm planner
+    agent.call_llm_planner(user_prompt)
+
+
 if __name__ == "__main__":
     # check if user prompt was given
     user_query = USER_QUERY_DEFAULT
@@ -87,5 +95,7 @@ if __name__ == "__main__":
 
     # create conversational agent
     agent = Agent()
-    # call the llm planner
-    llm_response = agent.call_llm_planner(user_query)
+
+    while True:
+        main()
+        time.sleep(1)
