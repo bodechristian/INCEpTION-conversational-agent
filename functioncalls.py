@@ -69,6 +69,8 @@ class Agentfunctions():
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{user_query=}")
+        # print(self.softwareenv.get_vectorstore().get(where={'isAnnotation': True}))
+        # print(self.softwareenv.get_vectorstore().similarity_search(user_query, filter={'isAnnotation': True}))
 
     def summarize_document(self, scope: str) -> str:
         """Classifies text based on the scope"""

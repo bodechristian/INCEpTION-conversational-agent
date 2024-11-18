@@ -9,6 +9,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_cohere import CohereEmbeddings
+from langchain_core.documents import Document
 
 
 class Software_environment():
@@ -49,12 +50,23 @@ class Software_environment():
 
     def add_cas_to_vectorstore(self, cas, doc_id):
         # Load the document, split it into chunks, embed each chunk and load it into the vector store.
-        # text_splitter = CharacterTextSplitter(
-        #     chunk_size=1, chunk_overlap=0, separator="\n")
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200, add_start_index=True
         )
-        documents = text_splitter.create_documents([cas.sofa_string], metadatas=[{"doc_id": doc_id}])
+        documents = text_splitter.create_documents([cas.sofa_string], metadatas=[
+                                                   {"doc_id": doc_id, "isAnnotation": False}])
+        # add annotations to vectorstore
+        for f in cas.select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
+            # get custom layers
+            if f.layer.name.startswith('webanno'):
+                # tokens on this layer are annotations
+                for token in cas.select(f.layer.name):
+                    # get surrounding text as context (+/- 50 chars)
+                    token_text = cas.sofa_string[max(token.begin-50, 0):min(token.end+50, len(cas.sofa_string))]
+                    doc = Document(page_content=token_text, metadata={
+                                   'start_index': token.begin, 'text': token.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id})
+                    documents.append(doc)
+
         self.vector_store.add_documents(documents)
 
     def get_documenttext_by_id(self, id: int):
@@ -98,14 +110,6 @@ class Software_environment():
         for f in cas.select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
             if f.layer.name.startswith('webanno'):
                 landfs[f.layer.name].append(f.name)
-        # for l in landfs.keys():
-        #     try:
-        #         parentype = cas.typesystem.get_type(l)
-        #     except:
-        #         parent_type = cas.typesystem.create_type(name=l)
-        #         for f in landfs[l]:
-        #             cas.typesystem.create_feature(
-        #                 domainType=parent_type, name=f, rangeType=cassis.TYPE_NAME_STRING)
 
         return landfs
 
