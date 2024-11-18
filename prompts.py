@@ -99,6 +99,16 @@ Only respond with 'all documents' if the user specifically mentions it.
 user_query:"""
 
 
+def get_system_prompt_verify_annos(annos):
+    return f"""Your job is to verify annotations. You will receive a list of annotations and have to respond to the user's query.
+You will also get a little bit of the surrounding context for the word to help you answer the query.
+
+Annotations:
+{annos}
+
+User's query:"""
+
+
 def get_system_prompt_respond(contxt):
     return f"""You are a conversational assistent in a bigger system. Your job is to respond to the user after already completing multiple steps.
 You get additional context from the previous steps that another assistent in the bigger system completed.

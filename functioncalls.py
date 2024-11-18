@@ -69,8 +69,22 @@ class Agentfunctions():
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{user_query=}")
-        # print(self.softwareenv.get_vectorstore().get(where={'isAnnotation': True}))
-        # print(self.softwareenv.get_vectorstore().similarity_search(user_query, filter={'isAnnotation': True}))
+
+        # why does where not accept multiple k:v's inside the dict ?!?!?!?!??!
+        annos_docs = self.softwareenv.get_vectorstore().get(where={'isAnnotation': True})
+
+        # get relevant layer+feature
+        # should this always be specific to a layer + feature?
+        annos = []
+        for text, metadata in zip(annos_docs['documents'], annos_docs['metadatas']):
+            if metadata['layer'] == layer_and_feature[0]:
+                annos.append((text, metadata['text']))
+
+        # TODO: cap the length of this and do multiple LLM calls
+        annos_string = "\n\n".join([f"{i+1}: {text}\ncontext: {context}" for i, (context, text) in enumerate(annos)])
+        logger.debug(get_system_prompt_verify_annos(annos_string))
+        return_result = self.callback_llm(get_system_prompt_verify_annos(annos_string), user_query)
+        return return_result
 
     def summarize_document(self, scope: str) -> str:
         """Classifies text based on the scope"""
@@ -225,8 +239,8 @@ class Agentfunctions():
         landfs = self.softwareenv.get_layers_and_features()
 
         # call llm
-        return_result = self.callback_llm(
-            get_system_prompt_getlayer(landfs), original_user_query)
+        return_result = self.callback_llm(get_system_prompt_getlayer(landfs), original_user_query)
+
         # extract from json response
         try:
             json_response = json.loads(return_result)
