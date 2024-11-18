@@ -6,6 +6,7 @@ from os import getcwd, listdir
 from os.path import join
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
+from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_cohere import CohereEmbeddings
@@ -23,6 +24,7 @@ class Software_environment():
     def __init__(self):
         load_dotenv()
         self.COHERE_API_KEY = os.getenv('COHERE_API_KEY')
+        self.OPEN_AI_API_KEY = os.getenv('OPEN_AI_API_KEY')
         self.create_vectorstore()
         self.load_docs()
         if len(self.documents) > 0:
@@ -40,9 +42,14 @@ class Software_environment():
 
                 self.next_id += 1
 
-    def create_vectorstore(self):
-        embeddings = CohereEmbeddings(
-            cohere_api_key=self.COHERE_API_KEY, model="embed-english-v3.0")
+    def create_vectorstore(self, embeddings_model="cohere"):
+        # set embeddings
+        if embeddings_model == "cohere":
+            embeddings = CohereEmbeddings(
+                cohere_api_key=self.COHERE_API_KEY, model="embed-english-v3.0")
+        elif embeddings_model == "openai":
+            embeddings = OpenAIEmbeddings(api_key=self.OPEN_AI_API_KEY, model='text-embedding-3-large')
+        # create initial vector store
         self.vector_store = Chroma(
             collection_name="INCEpTION",
             embedding_function=embeddings,
