@@ -28,7 +28,8 @@ class Software_environment():
         self.create_vectorstore()
         self.load_docs()
         if len(self.documents) > 0:
-            self.current_document_id = 1
+            # 0: political document, 1: cheetah document
+            self.current_document_id = 0
 
     def load_docs(self):
         """loads all documents in the given documents folder"""
@@ -55,10 +56,10 @@ class Software_environment():
             embedding_function=embeddings,
         )
 
-    def add_cas_to_vectorstore(self, cas, doc_id):
+    def add_cas_to_vectorstore(self, cas: cassis.Cas, doc_id):
         # Load the document, split it into chunks, embed each chunk and load it into the vector store.
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200, add_start_index=True
+            chunk_size=250, chunk_overlap=100, add_start_index=True
         )
         documents = text_splitter.create_documents([cas.sofa_string], metadatas=[
                                                    {"doc_id": doc_id, "isAnnotation": False}])
@@ -70,8 +71,11 @@ class Software_environment():
                 for token in cas.select(f.layer.name):
                     # get surrounding text as context (+/- 50 chars)
                     token_text = cas.sofa_string[max(token.begin-50, 0):min(token.end+50, len(cas.sofa_string))]
+                    token_active_features = {name: token[name] for name in token.__slots__ if name not in [
+                        "sofa", "begin", "end"] and token[name] != None}
                     doc = Document(page_content=token_text, metadata={
-                                   'start_index': token.begin, 'text': token.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id})
+                                   'start_index': token.begin, 'text': token.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id, 'layer': f.layer.name,
+                                   **token_active_features})
                     documents.append(doc)
 
         self.vector_store.add_documents(documents)
