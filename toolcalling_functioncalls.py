@@ -174,7 +174,8 @@ class AgentfunctionsToolcalling():
         found_words = [(documenttext[s:e], s, e) for _, (s, e) in found_spans]
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
-        return found_spans
+        stringify_spans = [f"({cat}, ({s}, {e}))" for (cat, (s, e)) in found_spans]
+        return f"[{', '.join(stringify_spans)}]"
 
     def highlight(self, layer_and_feature: tuple[str, str], scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""
