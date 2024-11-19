@@ -11,11 +11,13 @@ from functioncalls import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 
+from toolcalling_functioncalls import AgentfunctionsToolcalling
+
 
 class Agent():
 
     # cerebras: llama3.1-70b, groq:llama3-70b-8192
-    def __init__(self, model="llama3.1-70b", client="cerebras") -> None:
+    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False) -> None:
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
@@ -31,8 +33,12 @@ class Agent():
 
         # initialize api and software env
         self.model = model
+
         self.softwareenv = MockAnnotationTool()
-        self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
+        if toolcalling_functions:
+            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm)
+        else:
+            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
         self.parser = Dollarparser(self.functionclass)
 
         if client == "groq":
