@@ -76,11 +76,12 @@ TOOLS = [
                     },
                     "scope": {
                         "type": "string",
-                        "description": "The text to analyze",
+                        "description": "The scope of the document to analyze",
                         "enum": ['current document', 'all documents'],
                     },
                 },
-                "required": ["criteria_query", "text"],
+                "required": ["criteria_query", "scope"],
+
             },
         },
     },
@@ -176,13 +177,12 @@ Annotations have a layer that they are on, and a feature that is a string.
 Your goal is to support the user in performing their annotation tasks.
 You might need to call some functions before others to get more info about the query. 
 Such as getting the scope first, so that later functions can have that as extra information.
-What is your first step?
+Work step by step.
 """
 
-USER_QUERY = """
-please annotate every animal as such
-"""
+USER_QUERY = """Highlight every animal"""
 
+# cerebras: llama3.1-70b, groq:llama3-70b-8192
 ag = Agent(toolcalling_functions=True)
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 # client = Groq(
@@ -234,4 +234,5 @@ while chat_completion.choices[0].finish_reason != "stop":
         temperature=0.0,
         parallel_tool_calls=True,
     )
+    print(chat_completion)
     return_result = chat_completion.choices[0].message
