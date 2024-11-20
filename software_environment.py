@@ -23,13 +23,13 @@ class Software_environment():
 
     def __init__(self):
         load_dotenv()
-        self.COHERE_API_KEY = os.getenv('COHERE_API_KEY')
-        self.OPEN_AI_API_KEY = os.getenv('OPEN_AI_API_KEY')
+        self.COHERE_API_KEY = os.environ['COHERE_API_KEY']
+        self.OPEN_AI_API_KEY = os.environ['OPEN_AI_API_KEY']
         self.create_vectorstore()
         self.load_docs()
         if len(self.documents) > 0:
             # 0: political document, 1: cheetah document
-            self.current_document_id = 0
+            self.current_document_id = 1
 
     def load_docs(self):
         """loads all documents in the given documents folder"""
@@ -77,7 +77,6 @@ class Software_environment():
                                    'start_index': token.begin, 'text': token.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id, 'layer': f.layer.name,
                                    **token_active_features})
                     documents.append(doc)
-
         self.vector_store.add_documents(documents)
 
     def get_documenttext_by_id(self, id: int):

@@ -10,16 +10,14 @@ from parser import Dollarparser
 from functioncalls import Agentfunctions
 from software_environment import Software_environment
 from groq import Groq
-from dotenv import load_dotenv
 
 
 class Agent():
 
     # cerebras: llama3.1-70b, groq:llama3-70b-8192
     def __init__(self, model="llama3.1-70b", client="cerebras") -> None:
-        load_dotenv()
-        self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-        self.CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
+        self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
+        self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)

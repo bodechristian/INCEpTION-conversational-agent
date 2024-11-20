@@ -16,7 +16,7 @@ from software_environment import Software_environment
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_API_KEY = os.environ['GROQ_API_KEY']
 
 
 class void_INCEpTION_UI:
