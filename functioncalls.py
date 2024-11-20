@@ -12,7 +12,7 @@ from groq import Groq
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from software_environment import Software_environment
+from mock_annotation_tool import MockAnnotationTool
 
 load_dotenv()
 
@@ -26,7 +26,7 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv: Software_environment, callback_llm) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
 

@@ -13,7 +13,7 @@ from langchain_cohere import CohereEmbeddings
 from langchain_core.documents import Document
 
 
-class Software_environment():
+class MockAnnotationTool():
     # id: cas_json
     documents = {}
     vector_stores = {}
@@ -63,20 +63,22 @@ class Software_environment():
         )
         documents = text_splitter.create_documents([cas.sofa_string], metadatas=[
                                                    {"doc_id": doc_id, "isAnnotation": False}])
+
         # add annotations to vectorstore
-        for f in cas.select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
+        for layer in cas.typesystem.get_types():
             # get custom layers
-            if f.layer.name.startswith('webanno'):
-                # tokens on this layer are annotations
-                for token in cas.select(f.layer.name):
+            if layer.name.startswith("webanno"):
+                # iterate through annotations on this layer
+                for anno in cas.select(layer.name):
                     # get surrounding text as context (+/- 50 chars)
-                    token_text = cas.sofa_string[max(token.begin-50, 0):min(token.end+50, len(cas.sofa_string))]
-                    token_active_features = {name: token[name] for name in token.__slots__ if name not in [
-                        "sofa", "begin", "end"] and token[name] != None}
-                    doc = Document(page_content=token_text, metadata={
-                                   'start_index': token.begin, 'text': token.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id, 'layer': f.layer.name,
-                                   **token_active_features})
+                    anno_text = cas.sofa_string[max(anno.begin-50, 0):min(anno.end+50, len(cas.sofa_string))]
+                    anno_active_features = {feat.name: anno[feat.name]
+                                            for feat in layer.features if anno[feat.name] is not None}
+                    doc = Document(page_content=anno_text, metadata={
+                        'start_index': anno.begin, 'text': anno.get_covered_text(), 'isAnnotation': True, 'doc_id': doc_id, 'layer': layer.name,
+                        **anno_active_features})
                     documents.append(doc)
+
         self.vector_store.add_documents(documents)
 
     def get_documenttext_by_id(self, id: int):
@@ -125,5 +127,5 @@ class Software_environment():
 
 
 if __name__ == "__main__":
-    a = Software_environment()
+    a = MockAnnotationTool()
     print(a.get_layers_and_features())

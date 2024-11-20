@@ -8,7 +8,7 @@ from prompts import *
 from cerebras.cloud.sdk import Cerebras
 from parser import Dollarparser
 from functioncalls import Agentfunctions
-from software_environment import Software_environment
+from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 
 
@@ -31,7 +31,7 @@ class Agent():
 
         # initialize api and software env
         self.model = model
-        self.softwareenv = Software_environment()
+        self.softwareenv = MockAnnotationTool()
         self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
         self.parser = Dollarparser(self.functionclass)
 

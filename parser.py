@@ -3,7 +3,7 @@ import sys
 import logging
 
 from functioncalls import Agentfunctions
-from software_environment import Software_environment
+from mock_annotation_tool import MockAnnotationTool
 
 
 class Dollarparser():
@@ -83,7 +83,7 @@ $7 = respond(context="")"""
     logger.setLevel(logging.DEBUG)
     logger.addHandler(stdout)
 
-    softwareenv = Software_environment()
+    softwareenv = MockAnnotationTool()
     f = Agentfunctions(softwareenv)
     parser = Dollarparser(f)
     parser.analyze_and_execute_dollar_syntax(TEST_INPUT)
