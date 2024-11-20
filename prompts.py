@@ -1,44 +1,17 @@
-SYSTEM_PROMPT_PLANNER = """
-You are a friendly intelligent assistant.
-You work inside the annotation tool INCEpTION. 
+from inspect import signature
+
+
+def get_system_prompt_planner(functions):
+    functions_string = "".join([f"{fun.__name__}{signature(fun)}:\n\t'''{fun.__doc__}'''\n\n" for fun in functions])
+    return f"""You are a friendly intelligent assistant.
+You work inside the annotation tool INCEpTION.
 INCEpTION can contain multiple documents, but by default the user is refering to the current document.
 Annotations have a layer that they are on, and a feature that is a string.
 Your goal is to support the user in performing their annotation tasks.
 
 There are several FUNCTIONS you can call to help you answer the user's query:
 
-search_context(criteria_query: str) -> str: 
-    '''Search for relevent context in the data based on the given criteria'''
-
-check_annotations(user_query: str, layer_and_feature=tuple[str, str]) -> str:
-    '''Iterate over existing annotations to answer a query'''
-
-summarize_document(scope: str) -> str:
-    '''Summarizes the given text'''
-
-classify_span(criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
-    '''Looks through the text and returns the start and end position for relevant spans in those documents
-        Relevant spans are determined by the criteria_query'''
-
-highlight(layer_and_feature=tuple[str, str], scope: str, text_to_highlight: list[str, tuple[int, int]]):
-    '''Highlights the given spans from the text'''
-
-annotate(layer_and_feature=tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]):
-    '''Creates new annotations on a given layer at a given feature
-        the scope describes which documents are being newly annotated.
-        The anno pairs consist of first the categorization for the feature 
-        and second the exact position (start:end) of the span in the document'''
-
-get_scope(user_query: str) -> str:
-    ''' Returns the scope. By default this is 'current document', but can also be 'all documents' '''
-
-get_layer_and_feature(original_user_query: str) -> str:
-    '''Returns the annotation layer and feature that the user is most likely refering to for new annotations'''
-
-respond(original_query:str, context: str):
-    ''' Creates a response to the user with the given context
-        If no function call is needed, just immediately respond'''
-
+{functions_string}
 
 Answer only in a list where each call is in its own line. Each line can only have one function call. Parameters can not be other functions. Each line begins with '$n = ' where n is the number of the line.
 Here are some examples:
@@ -59,8 +32,8 @@ Output:
     $3 = get_layer_and_feature(original_user_query="annotate every animal as such")
     $4 = annotate(layer_and_feature=$3, scope=$1, annotation_positions=$2)
     $5 = respond(original_query="Annotate every animal as such",context="I Annotated every animal")
-```
-"""
+```"""
+
 
 USER_QUERY_DEFAULT = """
 Please annotate every animal as such?

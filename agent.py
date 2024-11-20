@@ -65,9 +65,10 @@ class Agent():
         return llm_response
 
     def call_llm_planner(self, user_query, execute_functions=True):
-        llm_response = self.call_llm(SYSTEM_PROMPT_PLANNER, user_query)
+        system_prompt_planner = get_system_prompt_planner(self.functionclass.valid_functions.values())
+        llm_response = self.call_llm(system_prompt_planner, user_query)
         # printing response
-        self.logger.debug("System prompt:\n%s", SYSTEM_PROMPT_PLANNER)
+        self.logger.debug("System prompt:\n%s", system_prompt_planner)
         self.logger.info(LOGGER_PLANNER_INPUT,
                          user_query, llm_response)
         if execute_functions:
