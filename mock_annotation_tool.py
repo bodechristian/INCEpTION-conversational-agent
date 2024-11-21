@@ -36,6 +36,12 @@ class MockAnnotationTool():
         for filename in listdir(self.folderpath):
             with open(join(self.folderpath, filename), 'rb') as f:
                 cas = cassis.load_cas_from_json(f)
+
+                # add 'highlights' layer if it doesn't exist yet
+                if "highlights" not in [_type.name for _type in cas.typesystem.get_types()]:
+                    typesystem = cas.typesystem
+                    typesystem.create_type(name='highlights')
+                    cas.to_json(join(self.folderpath, filename))
                 self.documents[self.next_id] = cas
 
                 # add to vector store
