@@ -176,23 +176,21 @@ class Agentfunctions():
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         return found_spans
 
-    def highlight(self, layer_and_feature: tuple[str, str], scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
+    def highlight(self, scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\nparameters:")
-        logger.debug(f"{layer_and_feature=}\n{scope=}\n{text_to_highlight=}\n")
+        logger.debug(f"{scope=}\n{text_to_highlight=}\n")
 
         # load document
         cas = self.softwareenv.get_current_document()
-        layer, feature = layer_and_feature
         # retrieve the layer from cas
-        Token = cas.typesystem.get_type(layer)
+        Token = cas.typesystem.get_type('highlights')
         # iterate over spans
         for classification, (start, end) in text_to_highlight:
-            # create the token
+            # classification is irrelevant for highlights
+            # create and add the token
             t = Token(begin=start, end=end)
-            # set feature to classification
-            t[feature] = classification
             cas.add(t)
         cas.to_json('temp.json')
 
