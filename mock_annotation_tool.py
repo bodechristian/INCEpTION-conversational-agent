@@ -11,6 +11,7 @@ from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTe
 from langchain_chroma import Chroma
 from langchain_cohere import CohereEmbeddings
 from langchain_core.documents import Document
+from langchain_ollama import OllamaEmbeddings
 
 
 class MockAnnotationTool():
@@ -49,13 +50,15 @@ class MockAnnotationTool():
 
                 self.next_id += 1
 
-    def create_vectorstore(self, embeddings_model="cohere"):
+    def create_vectorstore(self, embeddings_model="ollama"):
         # set embeddings
         if embeddings_model == "cohere":
             embeddings = CohereEmbeddings(
                 cohere_api_key=self.COHERE_API_KEY, model="embed-english-v3.0")
         elif embeddings_model == "openai":
             embeddings = OpenAIEmbeddings(api_key=self.OPEN_AI_API_KEY, model='text-embedding-3-large')
+        elif embeddings_model == 'ollama':
+            embeddings = OllamaEmbeddings(model="mistral:latest")
         # create initial vector store
         self.vector_store = Chroma(
             collection_name="INCEpTION",
