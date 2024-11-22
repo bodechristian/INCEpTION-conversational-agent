@@ -11,8 +11,7 @@ from prompts import *
 from groq import Groq
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-from software_environment import Software_environment
+from mock_annotation_tool import MockAnnotationTool
 
 load_dotenv()
 
@@ -26,7 +25,7 @@ class void_INCEpTION_UI:
 
 
 class AgentfunctionsToolcalling():
-    def __init__(self, softwareenv: Software_environment, callback_llm, state) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, state) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
         self.state = state
@@ -195,18 +194,16 @@ class AgentfunctionsToolcalling():
 
         # load document
         cas = self.softwareenv.get_current_document()
-        layer, feature = self.state["layer"], self.state["feature"]
         # retrieve the layer from cas
-        Token = cas.typesystem.get_type(layer)
+        Token = cas.typesystem.get_type('highlights')
         # iterate over spans
         for classification, (start, end) in self.state["annotation_positions"]:
             # create the token
             t = Token(begin=start, end=end)
             # set feature to classification
-            t[feature] = classification
             cas.add(t)
         cas.to_json('temp.json')
-        return 'I highlighted the relevant spans'
+        return 'I highlighted the relevant spans from the memory "annotation_positions".'
 
     def annotate(self) -> void_INCEpTION_UI:
         """First finds most appropriate Layer and Feature from user query
@@ -231,6 +228,7 @@ class AgentfunctionsToolcalling():
             t[feature] = classification
             cas.add(t)
         cas.to_json('temp.json')
+        return 'I annotated the relevant spans from the memory "annotation_positions".'
 
     def get_scope(self) -> str:
         """analyzes the user_query and returns the document id(s) of the relevant document"""
