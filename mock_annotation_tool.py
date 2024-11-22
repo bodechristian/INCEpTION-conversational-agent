@@ -1,6 +1,8 @@
 from collections import defaultdict
 import cassis
 import os
+import time
+import logging
 
 from os import getcwd, listdir
 from os.path import join
@@ -23,7 +25,7 @@ class MockAnnotationTool():
     folderpath = join(getcwd(), "documents")
 
     def __init__(self):
-        load_dotenv()
+        t1 = time.time()
         self.COHERE_API_KEY = os.environ['COHERE_API_KEY']
         self.OPEN_AI_API_KEY = os.environ['OPEN_AI_API_KEY']
         self.create_vectorstore()
@@ -31,6 +33,8 @@ class MockAnnotationTool():
         if len(self.documents) > 0:
             # 0: political document, 1: cheetah document
             self.current_document_id = 1
+        l = logging.getLogger('output')
+        l.debug(f"Vector store initialized in {time.time() - t1:.2f} seconds")
 
     def load_docs(self):
         """loads all documents in the given documents folder"""
