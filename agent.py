@@ -1,10 +1,11 @@
 import sys
 import logging
+import json
 import os
 import time
 
 from prompts import *
-
+from argparse import ArgumentParser
 from cerebras.cloud.sdk import Cerebras
 from parser import Dollarparser
 from functioncalls import Agentfunctions
@@ -16,12 +17,13 @@ from toolcalling_functioncalls import AgentfunctionsToolcalling
 
 class Agent():
 
-    # cerebras: llama3.1-70b, groq:llama3-70b-8192
+    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview
     def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False) -> None:
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
         self.state = {}
+        self.toolcalling_functions = toolcalling_functions
 
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
@@ -41,8 +43,11 @@ class Agent():
             self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm, self.state)
         else:
             self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
-        self.parser = Dollarparser(self.functionclass)
+            self.parser = Dollarparser(self.functionclass)
 
+        self.set_client(client)
+
+    def set_client(self, client):
         if client == "groq":
             self.client = Groq(
                 api_key=self.GROQ_API_KEY,
@@ -86,23 +91,96 @@ class Agent():
             self.logger.info(LOGGER_PLANNER_RESPONSE, parsed_dollar_syntax)
         return llm_response
 
+    def call_llm_toolcalling(self, user_query):
+        self.state['user_query'] = user_query
+        self.logger.info(TOOLCALLING_INPUT, user_query)
+        messages = [
+            # system prompt
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT_TOOLCALLING,
 
-def main():
-    # wait for user input
-    user_prompt = input("Enter prompt: ")
-    # call the llm planner
-    agent.call_llm_planner(user_prompt)
+            },
+            {
+                'role': 'assistant',
+                'content': f"Your current memory contains values for {", ".join(self.state.keys())}"
+            },
+            {
+                "role": "user",
+                "content": user_query,
+            }
+        ]
+        [print(m) for m in messages]
+        chat_completion = self.client.chat.completions.create(
+            messages=messages,
+            model=self.model,
+            tools=TOOLCALLING_TOOLS,
+            temperature=0.0,
+            parallel_tool_calls=False,
+        )
+        return_result = chat_completion.choices[0].message
+        print(chat_completion)
+
+        if chat_completion.choices[0].finish_reason == "stop":
+            # no tools need to be called, just respond
+            self.logger.info(TOOLCALLING_OUTPUT, return_result.content)
+        else:
+            # tools are called, keep calling them until llm says stop
+            while chat_completion.choices[0].finish_reason != "stop":
+                # if tool calls exist
+                if return_result.tool_calls:
+                    # execute each of them (should only be one usually)
+                    for tool_call in return_result.tool_calls:
+                        self.logger.debug(f"CALLED: {tool_call}\n")
+                        # extract function and arguments
+                        func = self.functionclass.valid_functions[tool_call.function.name]
+                        arguments = json.loads(tool_call.function.arguments)
+                        # execute function
+                        response = func(**arguments)
+                        # append functioncall and the response to LLM messages
+                        messages.append(return_result)
+                        messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
+                [self.logger.debug(m) for m in messages]
+                # call LLM again with new appended messages
+                chat_completion = self.client.chat.completions.create(
+                    messages=messages,
+                    model=self.model,
+                    tools=TOOLCALLING_TOOLS,
+                    temperature=0.0,
+                    parallel_tool_calls=False,
+                )
+                return_result = chat_completion.choices[0].message
+            # this response considers what was done and the state
+            # therefore it should be better than just the normal llm content response
+            self.functionclass.respond()
+
+    def run(self):
+        # differentiate between toolcalling method and planner method
+        if self.toolcalling_functions:
+            # use finetuned tool-model for this. Otherwise many 'Failed to generate tool_calls'
+            self.model = "llama3-groq-70b-8192-tool-use-preview"
+            self.set_client("groq")
+            # call the toolcalling method
+            func_call = self.call_llm_toolcalling
+        else:
+            # call the llm planner method
+            func_call = self.call_llm_planner
+
+        # start conversation
+        while True:
+            # wait for user input
+            user_prompt = input("Enter prompt: ")
+            func_call(user_prompt)
+            time.sleep(1)
+            self.state = {}
 
 
 if __name__ == "__main__":
-    # check if user prompt was given
-    user_query = USER_QUERY_DEFAULT
-    if len(sys.argv) > 1:
-        user_query = sys.argv[1]
+    parser = ArgumentParser()
+    parser.add_argument("--toolcalling", action='store_true')
+    args = parser.parse_args()
 
     # create conversational agent
-    agent = Agent()
-
-    while True:
-        main()
-        time.sleep(1)
+    agent = Agent(toolcalling_functions=args.toolcalling)
+    # run it
+    agent.run()

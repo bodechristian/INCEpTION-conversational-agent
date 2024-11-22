@@ -65,7 +65,11 @@ class AgentfunctionsToolcalling():
 
         # create return string
         contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i, el in enumerate(contxt)])
+        # self.state['context'] = contxt_string
 
+        # return 'I saved relevant context in the memory.', leads to the llm calling summarize
+        # because it doesn't know if it has enough information to answer the users query yet
+        # so returning the actual context is important for the llm to make its decision
         return contxt_string
 
     def check_annotations(self) -> str:
@@ -169,6 +173,10 @@ class AgentfunctionsToolcalling():
                     found_spans.append(
                         (m.group(1), (true_start, true_start + len(m.group(2)))))
                 else:  # index is incorrect
+                    # check if the text is mentioned somewhere
+                    if re.search(m.group(2), documenttext) is None:
+                        # if none exist just continue
+                        continue
                     # find all text mentions
                     matches = re.finditer(m.group(2), documenttext)
                     # check if match was found

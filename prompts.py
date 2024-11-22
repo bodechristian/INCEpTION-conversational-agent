@@ -122,6 +122,93 @@ LOGGER_PLANNER_INPUT = """
 user input:
 %s
 --------------------------\n
-output:
+plan:
 %s
 \n--------------------------\n"""
+
+SYSTEM_PROMPT_TOOLCALLING = """
+You are an assistant for an annotation software. Your job is to help execute users queries.
+You have functions you can call to gather information that may be required for other functions.
+These informations are stored in your memory. Functions do not need parameters as they can read the memory as well.
+Work step by step and only call one function at a time.
+
+Here is an example process:
+
+```
+user_query:
+    annotate all politicians
+
+process:
+    - get_scope
+    - get_layer_and_feature
+    - classify_span
+    - annotate
+```
+"""
+TOOLCALLING_INPUT = """--------------------------\n
+user input:
+%s
+            
+--------------------------\n"""
+
+TOOLCALLING_OUTPUT = """%s
+
+--------------------------"""
+TOOLCALLING_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_context",
+            "description": "Searches for relevant context in the documents and uses that to answer the user query",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_annotations",
+            "description": "Iterate over existing annotations on a layer (and maybe also a feature) to answer the user query",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "summarize_document",
+            "description": "Summarizes a document. Depending of the scope of the user query, this might be the current document or all documents.",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "classify_span",
+            "description": "Classifies spans in the document that are relevant according to the user query in the memory. These are then saved in memory.",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "highlight",
+            "description": "Highlights the spans, that are saved in the memory, in the document",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "annotate",
+            "description": '''Creates new annotations on a given layer at a given feature. Uses the spans in the memory to do so''',
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scope",
+            "description": "Analyzes the user query and returns which documents should be considered. By default this returns 'current document'. If specifically asked for in the user query, this might return 'all documents'. This is then saved in memory.",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_layer_and_feature",
+            "description": "Returns the annotation layer and annotation feature you should use for new annotations. This is then saved in memory.",
+        },
+    },
+]
