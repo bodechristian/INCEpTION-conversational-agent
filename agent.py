@@ -21,6 +21,8 @@ class Agent():
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
+        self.state = {}
+
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
@@ -28,7 +30,7 @@ class Agent():
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(stdout)
         l = logging.getLogger("functions")
-        l.setLevel(logging.INFO)
+        l.setLevel(logging.DEBUG)
         l.addHandler(stdout)
 
         # initialize api and software env
@@ -36,7 +38,7 @@ class Agent():
 
         self.softwareenv = MockAnnotationTool()
         if toolcalling_functions:
-            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm)
+            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm, self.state)
         else:
             self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
         self.parser = Dollarparser(self.functionclass)

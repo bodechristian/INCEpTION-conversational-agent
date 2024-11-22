@@ -26,9 +26,10 @@ class void_INCEpTION_UI:
 
 
 class AgentfunctionsToolcalling():
-    def __init__(self, softwareenv: Software_environment, callback_llm) -> None:
+    def __init__(self, softwareenv: Software_environment, callback_llm, state) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
+        self.state = state
 
         self.valid_functions = {
             "search_context": self.search_context,
@@ -105,12 +106,15 @@ class AgentfunctionsToolcalling():
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
+        print(f"\nin classify:")
+        print(self.state)
 
         # get text from doc/cas
         if scope == "current document":
             documenttext = self.softwareenv.get_current_documenttext()
         elif scope == "all documents":
             documenttext = self.softwareenv.get_current_documenttext()
+
         # chunk texts
         # long texts may go out of context window and make llm ignore the prompt 'only respond with embedded text'
         # long texts also make llm embelish (e.g. change 'Clinton' to 'Hillary Clinton')
@@ -172,6 +176,7 @@ class AgentfunctionsToolcalling():
 
         # safety test, applying start:end onto the initial text
         found_words = [(documenttext[s:e], s, e) for _, (s, e) in found_spans]
+        self.state = found_words
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         stringify_spans = [f"({cat}, ({s}, {e}))" for (cat, (s, e)) in found_spans]
@@ -226,9 +231,12 @@ class AgentfunctionsToolcalling():
         logger = logging.getLogger("functions")
         logger.debug("inside get_scope\nparameters:")
         logger.debug(f"{user_query=}\n")
+        print(f"\nin scope:")
+        print(self.state)
 
         return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, user_query)
 
+        self.state['scope'] = return_result
         return f"The scope of the query is {return_result}"
 
     def get_layer_and_feature(self, original_user_query: str):
@@ -236,6 +244,8 @@ class AgentfunctionsToolcalling():
         logger.debug("\ninside get_feature\nparameters:")
         logger.debug(f"{original_user_query=}\n")
 
+        print(f"\nin layerfeature:")
+        print(self.state)
         # get possible layers and features
         landfs = self.softwareenv.get_layers_and_features()
 
@@ -253,6 +263,9 @@ class AgentfunctionsToolcalling():
             # default to random layer + feature
             layer = list(landfs.keys())[0]
             feature = landfs[layer][0]
+
+        self.state['layer'] = layer
+        self.state['feature'] = feature
 
         return f"The layer is {layer} and its feature is {feature}"
 

@@ -38,10 +38,13 @@ TOOLS = [
                         "description": "The user query to answer while iterating over the existing annotations",
                     },
                     "layer_and_feature": {
-                        "type": {}
+                        "type": {
+                            "type": "string",
+                            "description": "The layer and the feature to analyze",
+                        }
                     }
                 },
-                "required": ["user_query"],
+                "required": ["user_query", "layer_and_feature"],
             },
         },
     },
@@ -55,10 +58,11 @@ TOOLS = [
                 "properties": {
                     "scope": {
                         "type": "string",
-                        "description": "text to summarize",
+                        "description": "scope over the documents of the query",
+                        "enum": ['current document', 'all documents'],
                     },
                 },
-                "required": ["text"],
+                "required": ["scope"],
             },
         },
     },
@@ -93,6 +97,18 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "layer_and_feature": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "An array of length 2 containing [layer, feature]",
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "The scope of the document to analyze",
+                        "enum": ['current document', 'all documents'],
+                    },
                     "text_to_highlight": {
                         "type": "object",
                         "description": "The spans with start and end position that are to be highlighted",
@@ -212,15 +228,26 @@ chat_completion = client.chat.completions.create(
     temperature=0.0,
     parallel_tool_calls=True,
 )
+print(chat_completion)
 return_result = chat_completion.choices[0].message
 
 while chat_completion.choices[0].finish_reason != "stop":
+    print(f"\nin loop:")
+    print(ag.state)
     tool_calls = return_result.tool_calls
     if tool_calls:
         for tool_call in tool_calls:
             print("CALLED: ", tool_call)
             func = ag.functionclass.valid_functions[tool_call.function.name]
             arguments = json.loads(tool_call.function.arguments)
+
+            # # check if nested functions exist in arguments and run them
+            # for key, val in arguments.items():
+            #     if type(val) is dict:
+            #         # nested function will only have 1 key (name of the new function)
+            #         nested_func = list(val.keys())[0]
+            #         arguments[key] = ag.functionclass.valid_functions[nested_func](**list(val.values())[0])
+
             response = func(**arguments)
             messages.append(return_result)
             messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
