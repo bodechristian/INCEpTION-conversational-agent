@@ -12,7 +12,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_context",
-            "description": "Searches for relevent context in the documents and uses that to answer the user query",
+            "description": "Searches for relevant context in the documents and uses that to answer the user query",
         },
     },
     {
@@ -85,7 +85,9 @@ process:
 ```
 """
 
-USER_QUERY = """How fast does a cheetah run?"""
+# USER_QUERY = """How fast does a cheetah run?"""
+# USER_QUERY = """Hi how are you?"""
+USER_QUERY = """highlight all animals"""
 
 
 def print_memory(mem):
@@ -103,6 +105,11 @@ CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
 #     api_key=CEREBRAS_API_KEY,
 # )
 ag.state['user_query'] = USER_QUERY
+ag.logger.info("""--------------------------\n
+user input:
+%s
+               
+--------------------------\n""", USER_QUERY)
 messages = [
     # system prompt
     {
@@ -129,36 +136,44 @@ chat_completion = client.chat.completions.create(
 )
 return_result = chat_completion.choices[0].message
 
-while chat_completion.choices[0].finish_reason != "stop":
-    print(f"\nin loop:")
-    print(ag.state)
-    print()
-    tool_calls = return_result.tool_calls
-    if tool_calls:
-        for tool_call in tool_calls:
-            print("CALLED: ", tool_call)
-            func = ag.functionclass.valid_functions[tool_call.function.name]
-            arguments = json.loads(tool_call.function.arguments)
+if chat_completion.choices[0].finish_reason == "stop":
+    # no tools need to be called, just respond
+    ag.logger.info(f"""{return_result.content}
 
-            # # check if nested functions exist in arguments and run them
-            # for key, val in arguments.items():
-            #     if type(val) is dict:
-            #         # nested function will only have 1 key (name of the new function)
-            #         nested_func = list(val.keys())[0]
-            #         arguments[key] = ag.functionclass.valid_functions[nested_func](**list(val.values())[0])
+--------------------------""")
+else:
+    # tools are called, keep calling them until llm says stop
+    while chat_completion.choices[0].finish_reason != "stop":
+        tool_calls = return_result.tool_calls
+        if tool_calls:
+            for tool_call in tool_calls:
+                ag.logger.debug("CALLED: ", tool_call)
+                func = ag.functionclass.valid_functions[tool_call.function.name]
+                arguments = json.loads(tool_call.function.arguments)
 
-            response = func(**arguments)
-            messages.append(return_result)
-            messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
-    print()
-    [print(el) for el in messages]
-    print()
-    chat_completion = client.chat.completions.create(
-        messages=messages,
-        model="llama3-groq-70b-8192-tool-use-preview",
-        tools=TOOLS,
-        temperature=0.0,
-        parallel_tool_calls=False,
-    )
-    print(chat_completion)
-    return_result = chat_completion.choices[0].message
+                response = func(**arguments)
+                messages.append(return_result)
+                messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
+        [ag.logger.debug(m) for m in messages]
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model="llama3-groq-70b-8192-tool-use-preview",
+            tools=TOOLS,
+            temperature=0.0,
+            parallel_tool_calls=False,
+        )
+        return_result = chat_completion.choices[0].message
+    # this response considers what was done and the state
+    # therefore it should be better than just the normal llm content response
+    ag.functionclass.respond()
+
+
+# DUMP
+
+"""nested functions
+# check if nested functions exist in arguments and run them
+for key, val in arguments.items():
+    if type(val) is dict:
+        # nested function will only have 1 key (name of the new function)
+        nested_func = list(val.keys())[0]
+        arguments[key] = ag.functionclass.valid_functions[nested_func](**list(val.values())[0])"""
