@@ -12,175 +12,56 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_context",
-            "description": "Search for relevent context in the documents based on the given criteria",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "criteria_query": {
-                        "type": "string",
-                        "description": "The criteria or query to look for",
-                    }
-                },
-                "required": ["criteria_query"],
-            },
+            "description": "Searches for relevent context in the documents and uses that to answer the user query",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "check_annotations",
-            "description": "Iterate over existing annotations to answer the user_query",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_query": {
-                        "type": "string",
-                        "description": "The user query to answer while iterating over the existing annotations",
-                    },
-                    "layer_and_feature": {
-                        "type": {
-                            "type": "string",
-                            "description": "The layer and the feature to analyze",
-                        }
-                    }
-                },
-                "required": ["user_query", "layer_and_feature"],
-            },
+            "description": "Iterate over existing annotations on a layer (and maybe also a feature) to answer the user query",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "summarize_document",
-            "description": "Summarizes a document",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "scope": {
-                        "type": "string",
-                        "description": "scope over the documents of the query",
-                        "enum": ['current document', 'all documents'],
-                    },
-                },
-                "required": ["scope"],
-            },
+            "description": "Summarizes a document. Depending of the scope of the user query, this might be the current document or all documents.",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "classify_span",
-            "description": "Classifies spans in the document that are relevant according to the critera_query.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "criteria_query": {
-                        "type": "string",
-                        "description": "The categorization to identify spans by",
-                    },
-                    "scope": {
-                        "type": "string",
-                        "description": "The scope of the document to analyze",
-                        "enum": ['current document', 'all documents'],
-                    },
-                },
-                "required": ["criteria_query", "scope"],
-
-            },
+            "description": "Classifies spans in the document that are relevant according to the user query. These are then saved in memory.",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "highlight",
-            "description": "Highlights the given spans from the text",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "layer_and_feature": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "An array of length 2 containing [layer, feature]",
-                    },
-                    "scope": {
-                        "type": "string",
-                        "description": "The scope of the document to analyze",
-                        "enum": ['current document', 'all documents'],
-                    },
-                    "text_to_highlight": {
-                        "type": "object",
-                        "description": "The spans with start and end position that are to be highlighted",
-                    },
-                },
-                "required": ["text_to_highlight"],
-            },
+            "description": "Highlights the spans, that are saved in the memory, in the document",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "annotate",
-            "description": '''Creates new annotations on a given layer at a given feature
-                                The annotation positions consist of first the text for the feature 
-                                and second the exact position of the span in the text''',
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "layer_and_feature": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "description": "An array of length 2 containing [layer, feature]",
-                    },
-                    "scope": {
-                        "type": "string",
-                        "description": "Which documents to annotate",
-                        "enum": ['current document', 'all documents'],
-                    },
-                    "annotation_positions": {
-                        "type": "array",
-                        "description": "The description of the feature and the start and end position of the span",
-                    },
-                },
-                "required": ["layer", "feature", "annotation_positions"],
-            },
+            "description": '''Creates new annotations on a given layer at a given feature. Uses the spans in the memory to do so''',
         },
     },
     {
         "type": "function",
         "function": {
             "name": "get_scope",
-            "description": "Returns which documents should be considered. By default is 'current document'.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "user_query": {
-                        "type": "string",
-                        "description": "The user query to analyze",
-                    },
-                },
-                "required": ["user_query"],
-            },
+            "description": "Analyzes the user query and returns which documents should be considered. By default this returns 'current document'. If specifically asked for in the user query, this might return 'all documents'. This is then saved in memory.",
         },
     },
     {
         "type": "function",
         "function": {
             "name": "get_layer_and_feature",
-            "description": "Returns the annotation layer and annotation feature you should use for new annotations",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "original_user_query": {
-                        "type": "string",
-                        "description": "The user query to analyze",
-                    },
-                },
-                "required": ["original_user_query"],
-            },
+            "description": "Returns the annotation layer and annotation feature you should use for new annotations. This is then saved in memory.",
         },
     },
 ]
@@ -193,10 +74,17 @@ Annotations have a layer that they are on, and a feature that is a string.
 Your goal is to support the user in performing their annotation tasks.
 You might need to call some functions before others to get more info about the query. 
 Such as getting the scope first, so that later functions can have that as extra information.
+You have a memory where information such as scope, layer and more is stored.
+These informations do not have to be given to functions as parameters, as they will be taken from the memory.
 Work step by step.
 """
 
 USER_QUERY = """Highlight every animal"""
+
+
+def print_memory(mem):
+    return f"Your current memory contains values for {", ".join(mem.keys())}"
+
 
 # cerebras: llama3.1-70b, groq:llama3-70b-8192
 ag = Agent(toolcalling_functions=True)
@@ -208,12 +96,17 @@ CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY')
 client = Cerebras(
     api_key=CEREBRAS_API_KEY,
 )
+ag.state['user_query'] = USER_QUERY
 messages = [
     # system prompt
     {
         "role": "system",
         "content": SYSTEM_PROMPT,
 
+    },
+    {
+        'role': 'assistant',
+        'content': print_memory(ag.state)
     },
     {
         "role": "user",
@@ -228,7 +121,6 @@ chat_completion = client.chat.completions.create(
     temperature=0.0,
     parallel_tool_calls=True,
 )
-print(chat_completion)
 return_result = chat_completion.choices[0].message
 
 while chat_completion.choices[0].finish_reason != "stop":
