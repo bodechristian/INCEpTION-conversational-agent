@@ -30,7 +30,7 @@ class Agent():
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(stdout)
         l = logging.getLogger("functions")
-        l.setLevel(logging.DEBUG)
+        l.setLevel(logging.INFO)
         l.addHandler(stdout)
 
         # initialize api and software env
