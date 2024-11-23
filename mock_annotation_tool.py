@@ -28,7 +28,6 @@ class MockAnnotationTool():
         self.COHERE_API_KEY = os.environ['COHERE_API_KEY']
         self.OPEN_AI_API_KEY = os.environ['OPEN_AI_API_KEY']
         self.create_vectorstore()
-        print(len(self.vector_store.get()["documents"]))
         if len(self.vector_store.get()["documents"]) > 1:
             # if vector store is already filled from previous run through persistancy
             # then we dont need to store the cas again

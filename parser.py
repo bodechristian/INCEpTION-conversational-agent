@@ -35,8 +35,9 @@ class Dollarparser():
             json_kwargs = {}
             if parameters:
                 # regex splits at commas that are not in quotes
+                # old: r'(?!\B"[^"]*),\s?(?![^"]*"\B)' <- failed at empty quotes as a parameter, new one was created with chatgpt help
                 parameters = re.split(
-                    r'(?!\B"[^"]*),\s?(?![^"]*"\B)', parameters)
+                    r',\s?(?=(?:(?:[^"]*"){2})*[^"]*$)', parameters)
                 for p in parameters:
                     kw, val = p.split("=")
                     if val.startswith("$"):
