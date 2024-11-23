@@ -19,7 +19,6 @@ from langchain_ollama import OllamaEmbeddings
 class MockAnnotationTool():
     # id: cas_json
     documents = {}
-    vector_stores = {}
     next_id = 0
     current_document_id = -1
     folderpath = join(getcwd(), "documents")
@@ -29,30 +28,18 @@ class MockAnnotationTool():
         self.COHERE_API_KEY = os.environ['COHERE_API_KEY']
         self.OPEN_AI_API_KEY = os.environ['OPEN_AI_API_KEY']
         self.create_vectorstore()
-        self.load_docs()
+        print(len(self.vector_store.get()["documents"]))
+        if len(self.vector_store.get()["documents"]) > 1:
+            # if vector store is already filled from previous run through persistancy
+            # then we dont need to store the cas again
+            self.load_docs(store_cas=False)
+        else:
+            self.load_docs()
         if len(self.documents) > 0:
             # 0: political document, 1: cheetah document
             self.current_document_id = 1
         l = logging.getLogger('output')
         l.debug(f"Vector store initialized in {time.time() - t1:.2f} seconds")
-
-    def load_docs(self):
-        """loads all documents in the given documents folder"""
-        for filename in listdir(self.folderpath):
-            with open(join(self.folderpath, filename), 'rb') as f:
-                cas = cassis.load_cas_from_json(f)
-
-                # add 'highlights' layer if it doesn't exist yet
-                if "highlights" not in [_type.name for _type in cas.typesystem.get_types()]:
-                    typesystem = cas.typesystem
-                    typesystem.create_type(name='highlights')
-                    cas.to_json(join(self.folderpath, filename))
-                self.documents[self.next_id] = cas
-
-                # add to vector store
-                self.add_cas_to_vectorstore(cas, self.next_id)
-
-                self.next_id += 1
 
     def create_vectorstore(self, embeddings_model="ollama"):
         # set embeddings
@@ -67,17 +54,38 @@ class MockAnnotationTool():
         self.vector_store = Chroma(
             collection_name="INCEpTION",
             embedding_function=embeddings,
+            persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not necessary
         )
+
+    def load_docs(self, store_cas=True):
+        """loads all documents in the given documents folder"""
+        for filename in listdir(self.folderpath):
+            with open(join(self.folderpath, filename), 'rb') as f:
+                cas = cassis.load_cas_from_json(f)
+
+                # add 'highlights' layer if it doesn't exist yet
+                if "highlights" not in [_type.name for _type in cas.typesystem.get_types()]:
+                    typesystem = cas.typesystem
+                    typesystem.create_type(name='highlights')
+                    cas.to_json(join(self.folderpath, filename))
+                self.documents[self.next_id] = cas
+
+                # add to vector store
+                if store_cas:
+                    self.add_cas_to_vectorstore(cas, self.next_id)
+
+                self.next_id += 1
 
     def add_cas_to_vectorstore(self, cas: cassis.Cas, doc_id):
         # Load the document, split it into chunks, embed each chunk and load it into the vector store.
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=250, chunk_overlap=100, add_start_index=True
         )
+        # chunk and save texts from document
         documents = text_splitter.create_documents([cas.sofa_string], metadatas=[
                                                    {"doc_id": doc_id, "isAnnotation": False}])
 
-        # add annotations to vectorstore
+        # add existing annotations to that
         for layer in cas.typesystem.get_types():
             # get custom layers
             if layer.name.startswith("webanno"):
@@ -92,6 +100,7 @@ class MockAnnotationTool():
                         **anno_active_features})
                     documents.append(doc)
 
+        # load them into vector store
         self.vector_store.add_documents(documents)
 
     def get_documenttext_by_id(self, id: int):

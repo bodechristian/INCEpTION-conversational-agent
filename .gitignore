@@ -7,3 +7,4 @@ venv/
 .env
 temp.py
 temp.json
+chroma_langchain_db/
