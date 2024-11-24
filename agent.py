@@ -46,6 +46,11 @@ class Agent():
             self.parser = Dollarparser(self.functionclass)
 
         self.set_client(client)
+        # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
+        self.client_toolcalling = Groq(
+            api_key=self.GROQ_API_KEY,
+        )
+        self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"
 
     def set_client(self, client):
         if client == "groq":
@@ -110,16 +115,15 @@ class Agent():
                 "content": user_query,
             }
         ]
-        [print(m) for m in messages]
-        chat_completion = self.client.chat.completions.create(
+        [self.logger.debug(m) for m in messages]
+        chat_completion = self.client_toolcalling.chat.completions.create(
             messages=messages,
-            model=self.model,
+            model=self.model_toolcalling,
             tools=TOOLCALLING_TOOLS,
             temperature=0.0,
             parallel_tool_calls=False,
         )
         return_result = chat_completion.choices[0].message
-        print(chat_completion)
 
         if chat_completion.choices[0].finish_reason == "stop":
             # no tools need to be called, just respond
@@ -142,9 +146,9 @@ class Agent():
                         messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
                 [self.logger.debug(m) for m in messages]
                 # call LLM again with new appended messages
-                chat_completion = self.client.chat.completions.create(
+                chat_completion = self.client_toolcalling.chat.completions.create(
                     messages=messages,
-                    model=self.model,
+                    model=self.model_toolcalling,
                     tools=TOOLCALLING_TOOLS,
                     temperature=0.0,
                     parallel_tool_calls=False,
@@ -157,9 +161,6 @@ class Agent():
     def run(self):
         # differentiate between toolcalling method and planner method
         if self.toolcalling_functions:
-            # use finetuned tool-model for this. Otherwise many 'Failed to generate tool_calls'
-            self.model = "llama3-groq-70b-8192-tool-use-preview"
-            self.set_client("groq")
             # call the toolcalling method
             func_call = self.call_llm_toolcalling
         else:
