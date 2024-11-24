@@ -25,10 +25,10 @@ class void_INCEpTION_UI:
 
 
 class AgentfunctionsToolcalling():
-    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, state) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_getstate) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
-        self.state = state
+        self.callback_getstate = callback_getstate
 
         self.valid_functions = {
             "search_context": self.search_context,
@@ -48,16 +48,21 @@ class AgentfunctionsToolcalling():
         logger = logging.getLogger("functions")
         logger.debug(
             "inside search\ncurrent state:")
-        logger.debug(self.state)
-        # TODO: ask llm for better criteria query from self.state["user_query"]
+        logger.debug(self.callback_getstate())
+        # call llm to retrieve criteria, used for the vector store
+        # TODO: maybe make json with {reason: "..", keyphrase: ".."} to get better results
+        criteria = self.callback_llm("""Your job is to extract key phrases from a query.
+The new phrase is used to look up similar sentences in a database.
+Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
+
         # get relevant chunks from vector store
-        contxt = self.softwareenv.get_vectorstore().similarity_search(
-            self.state["user_query"])  # , filter={"doc_id": 0}
+        contxt = self.softwareenv.get_vectorstore().similarity_search(criteria)  # , filter={"doc_id": 0}
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context
+        # TODO: ask which contexts are relevant to answer and which further which segments of those are important
         best_contxt = contxt[0]
-        self.state['annotation_positions'] = [
+        self.callback_getstate()['annotation_positions'] = [
             ("", (best_contxt.metadata["start_index"], best_contxt.metadata["start_index"] + len(best_contxt.page_content)))]
         self.get_scope()
         self.get_layer_and_feature()
@@ -65,7 +70,7 @@ class AgentfunctionsToolcalling():
 
         # create return string
         contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i, el in enumerate(contxt)])
-        # self.state['context'] = contxt_string
+        # self.callback_getstate()['context'] = contxt_string
 
         # return 'I saved relevant context in the memory.', leads to the llm calling summarize
         # because it doesn't know if it has enough information to answer the users query yet
@@ -76,7 +81,7 @@ class AgentfunctionsToolcalling():
         """Iterate over annotations either solely annotations or with sliding context-window"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         # why does where not accept multiple k:v's inside the dict ?!?!?!?!??!
         annos_docs = self.softwareenv.get_vectorstore().get(where={'isAnnotation': True})
@@ -85,23 +90,24 @@ class AgentfunctionsToolcalling():
         # should this always be specific to a layer + feature?
         annos = []
         for text, metadata in zip(annos_docs['documents'], annos_docs['metadatas']):
-            if metadata['layer'] == self.state["layer"]:
+            if metadata['layer'] == self.callback_getstate()["layer"]:
                 annos.append((text, metadata['text']))
 
         # TODO: cap the length of this and do multiple LLM calls
         annos_string = "\n\n".join([f"{i+1}: {text}\ncontext: {context}" for i, (context, text) in enumerate(annos)])
         logger.debug(get_system_prompt_verify_annos(annos_string))
-        return_result = self.callback_llm(get_system_prompt_verify_annos(annos_string), self.state["user_query"])
+        return_result = self.callback_llm(get_system_prompt_verify_annos(
+            annos_string), self.callback_getstate()["user_query"])
         return return_result
 
     def summarize_document(self) -> str:
         """Classifies text based on the scope"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside summarize\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         txt = ""
-        if self.state["scope"] == "current document":
+        if self.callback_getstate()["scope"] == "current document":
             txt = self.softwareenv.get_current_documenttext()
         return_result = self.callback_llm(SYSTEM_PROMPT_SUMMARIZE, txt)
 
@@ -112,16 +118,16 @@ class AgentfunctionsToolcalling():
             First tuple element is the categorization, second is start and end index of the classified text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
-        if 'scope' not in self.state.keys():
+        if 'scope' not in self.callback_getstate().keys():
             return 'There is currently no scope in the memory'
 
-        # TODO: ask llm for better criteria query from self.state["user_query"]
+        # TODO: ask llm for better criteria query from self.callback_getstate()["user_query"]
         # get text from doc/cas
-        if self.state["scope"] == "current document":
+        if self.callback_getstate()["scope"] == "current document":
             documenttext = self.softwareenv.get_current_documenttext()
-        elif self.state["scope"] == "all documents":
+        elif self.callback_getstate()["scope"] == "all documents":
             documenttext = self.softwareenv.get_current_documenttext()
         else:
             return 'No valid scope yet.'
@@ -144,7 +150,7 @@ class AgentfunctionsToolcalling():
 
         for text in text_chunks:
             return_result = self.callback_llm(
-                get_system_prompt_classify(self.state["user_query"]), text)
+                get_system_prompt_classify(self.callback_getstate()["user_query"]), text)
 
             # hacky fix for \r\n\r\n -> \n\n problem
             # maybe will break other documents that dont use \r\n
@@ -191,7 +197,7 @@ class AgentfunctionsToolcalling():
 
         # safety test, applying start:end onto the initial text
         found_words = [(documenttext[s:e], (s, e)) for _, (s, e) in found_spans]
-        self.state['annotation_positions'] = found_words
+        self.callback_getstate()['annotation_positions'] = found_words
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         # stringify_spans = [f"({cat}, ({s}, {e}))" for (cat, (s, e)) in found_spans]
@@ -201,14 +207,14 @@ class AgentfunctionsToolcalling():
         """Highlights the given spans from the text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         # load document
         cas = self.softwareenv.get_current_document()
         # retrieve the layer from cas
         Token = cas.typesystem.get_type('highlights')
         # iterate over spans
-        for _, (start, end) in self.state["annotation_positions"]:
+        for _, (start, end) in self.callback_getstate()["annotation_positions"]:
             # create the token
             t = Token(begin=start, end=end)
             # set feature to classification
@@ -223,15 +229,15 @@ class AgentfunctionsToolcalling():
             and second the exact corresponding span in the text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside annotate\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         # load document
         cas = self.softwareenv.get_current_document()
-        layer, feature = self.state["layer"], self.state["feature"]
+        layer, feature = self.callback_getstate()["layer"], self.callback_getstate()["feature"]
         # retrieve the layer from cas
         layertype = cas.typesystem.get_type(layer)
         # iterate over spans
-        for classification, (start, end) in self.state["annotation_positions"]:
+        for classification, (start, end) in self.callback_getstate()["annotation_positions"]:
             # create the token
             t = layertype(begin=start, end=end)
             # set feature to classification
@@ -244,23 +250,23 @@ class AgentfunctionsToolcalling():
         """analyzes the user_query and returns the document id(s) of the relevant document"""
         logger = logging.getLogger("functions")
         logger.debug("inside get_scope\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
-        return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, self.state['user_query'])
+        return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, self.callback_getstate()['user_query'])
 
-        self.state['scope'] = return_result
+        self.callback_getstate()['scope'] = return_result
         return f"The scope of the query is {return_result}"
 
     def get_layer_and_feature(self) -> str:
         logger = logging.getLogger("functions")
         logger.debug("\ninside get_layer_and_feature\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         # get possible layers and features
         landfs = self.softwareenv.get_layers_and_features()
 
         # call llm
-        return_result = self.callback_llm(get_system_prompt_getlayer(landfs), self.state['user_query'])
+        return_result = self.callback_llm(get_system_prompt_getlayer(landfs), self.callback_getstate()['user_query'])
 
         # extract from json response
         try:
@@ -274,8 +280,8 @@ class AgentfunctionsToolcalling():
             layer = list(landfs.keys())[0]
             feature = landfs[layer][0]
 
-        self.state['layer'] = layer
-        self.state['feature'] = feature
+        self.callback_getstate()['layer'] = layer
+        self.callback_getstate()['feature'] = feature
 
         return f"The values for and feature are now known and stored in the memory."
 
@@ -287,10 +293,10 @@ class AgentfunctionsToolcalling():
         Justify how well you answered the user query"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside respond\ncurrent state:")
-        logger.debug(self.state)
+        logger.debug(self.callback_getstate())
 
         return_result = self.callback_llm(
-            get_system_prompt_respond(self.state), self.state['user_query'])
+            get_system_prompt_respond(self.callback_getstate()), self.callback_getstate()['user_query'])
 
         l = logging.getLogger('output')
         l.info(f"""{return_result}

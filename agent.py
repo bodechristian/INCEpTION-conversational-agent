@@ -40,7 +40,7 @@ class Agent():
 
         self.softwareenv = MockAnnotationTool()
         if toolcalling_functions:
-            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm, self.state)
+            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm, self.get_state)
         else:
             self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
             self.parser = Dollarparser(self.functionclass)
@@ -95,6 +95,9 @@ class Agent():
                 llm_response)
             self.logger.info(LOGGER_PLANNER_RESPONSE, parsed_dollar_syntax)
         return llm_response
+
+    def get_state(self):
+        return self.state
 
     def call_llm_toolcalling(self, user_query):
         self.state['user_query'] = user_query
