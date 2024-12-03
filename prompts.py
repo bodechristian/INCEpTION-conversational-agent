@@ -13,7 +13,9 @@ There are several FUNCTIONS you can call to help you answer the user's query:
 
 {functions_string}
 
-Answer only in a list where each call is in its own line. Each line can only have one function call. Parameters can not be other functions. Each line begins with '$n = ' where n is the number of the line.
+Answer only in a list where each function call is in its own line. Parameters can not be other functions.
+NEVER nest functions.
+Each line begins with '$n = ' where n is the number of the line.
 Here are some examples:
 ```
 Example 1:
@@ -129,7 +131,7 @@ plan:
 SYSTEM_PROMPT_TOOLCALLING = """
 You are an assistant for an annotation software. Your job is to help execute users queries.
 You have functions you can call to gather information that may be required for other functions.
-These informations are stored in your memory. Functions do not need parameters as they can read the memory as well.
+These informations are stored in your memory. The user_query is already stored in your memory.
 Work step by step and only call one function at a time.
 
 Here is an example process:
@@ -144,6 +146,15 @@ process:
     - classify_span
     - annotate
 ```
+```
+user_query:
+    who won the election?
+
+process:
+    - search_context('election winner')
+```
+
+user_query:
 """
 TOOLCALLING_INPUT = """--------------------------\n
 user input:
@@ -159,14 +170,24 @@ TOOLCALLING_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_context",
-            "description": "Searches for relevant context in the documents and uses that to answer the user query",
+            "description": "Searches for relevant context in the document text. Helps retrieving more information about a topic. This returns no information about annotations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key_phrase": {
+                        "type": "string",
+                        "description": "The topic you want to know more about.",
+                    }
+                },
+                "required": ["key_phrase"],
+            },
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "check_annotations",
-            "description": "Iterate over existing annotations on a layer (and maybe also a feature) to answer the user query",
+            "name": "search_annotations",
+            "description": "Analyze existing annotations in the document. Requires a specific layer and feature",
         },
     },
     {
@@ -180,7 +201,17 @@ TOOLCALLING_TOOLS = [
         "type": "function",
         "function": {
             "name": "classify_span",
-            "description": "Classifies spans in the document that are relevant according to the user query in the memory. These are then saved in memory.",
+            "description": "Classifies spans in the document that are relevant according to the classification_criteria. These are then saved in memory as annotation_poisitions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "classification_query": {
+                        "type": "string",
+                        "description": "The query to classify spans by in the document. Can be whole sentences that include logic.",
+                    }
+                },
+                "required": ["classification_query"],
+            },
         },
     },
     {
@@ -194,7 +225,7 @@ TOOLCALLING_TOOLS = [
         "type": "function",
         "function": {
             "name": "annotate",
-            "description": '''Creates new annotations on a given layer at a given feature. Uses the spans in the memory to do so''',
+            "description": '''Creates new annotations on a given layer at a given feature. Uses the spans in the memory to do so. Should only be done if user specifically asks to create annotations.''',
         },
     },
     {

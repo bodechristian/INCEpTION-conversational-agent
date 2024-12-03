@@ -141,12 +141,10 @@ class MockAnnotationTool():
         landfs = defaultdict(list)
         cas = self.get_current_document()
         for f in cas.select('de.tudarmstadt.ukp.clarin.webanno.api.type.FeatureDefinition'):
+            if f.name == 'AnnotationSuggestion':
+                # ignore annotation suggestion. They are just a flag for the prototype visualization
+                continue
             if f.layer.name.startswith('webanno'):
                 landfs[f.layer.name].append(f.name)
 
         return landfs
-
-
-if __name__ == "__main__":
-    a = MockAnnotationTool()
-    print(a.get_layers_and_features())

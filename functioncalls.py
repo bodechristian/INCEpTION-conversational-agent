@@ -32,7 +32,7 @@ class Agentfunctions():
 
         self.valid_functions = {
             "search_context": self.search_context,
-            "check_annotations": self.check_annotations,
+            "search_annotations": self.search_annotations,
             "summarize_document": self.summarize_document,
             "classify_span": self.classify_span,
             "get_scope": self.get_scope,
@@ -55,8 +55,7 @@ class Agentfunctions():
         # highlight best context
         best_contxt = contxt[0]
         _scope = self.get_scope(user_query=criteria_query)
-        _landf = self.get_layer_and_feature(original_user_query=criteria_query)
-        self.highlight(layer_and_feature=_landf, scope=_scope, text_to_highlight=[
+        self.highlight(scope=_scope, text_to_highlight=[
                        (criteria_query, (best_contxt.metadata["start_index"], best_contxt.metadata["start_index"] + len(best_contxt.page_content)))])
 
         # create return string
@@ -64,7 +63,7 @@ class Agentfunctions():
 
         return contxt_string
 
-    def check_annotations(self, layer_and_feature: tuple[str, str], user_query: str) -> str:
+    def search_annotations(self, layer_and_feature: tuple[str, str], user_query: str) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
@@ -96,12 +95,15 @@ class Agentfunctions():
         if scope == "current document":
             txt = self.softwareenv.get_current_documenttext()
         return_result = self.callback_llm(SYSTEM_PROMPT_SUMMARIZE, txt)
+        print("\n\nHERE THE REUSLT")
+        print(return_result)
 
         return return_result
 
     def classify_span(self, criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
         """Iterates over text determined by the scope and classifies text based on the criteria
-            First tuple element is the categorization, second is start and end index of the classified text"""
+First tuple element is the categorization, second is start and end index of the classified text.
+Returns the annotation positions."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
@@ -258,11 +260,9 @@ class Agentfunctions():
         return layer, feature
 
     def respond(self, original_query: str, context: str) -> str:
-        """Create a response for the user summarizing the functions/intents called 
-            and the previous output
-            Afterwards respond in the chat window"""
-        """Potential Prompt, also get initialy user query as parameter
-        Justify how well you answered the user query"""
+        """Create a response for the user summarizing the functions called and the previous output. Should always be called last."""
+        # Potential Prompt, also get initialy user query as parameter
+        # Justify how well you answered the user query
         logger = logging.getLogger("functions")
         logger.debug("\ninside respond\nparameters:")
         logger.debug(f"{context=}\n")

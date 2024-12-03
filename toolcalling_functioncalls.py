@@ -25,14 +25,15 @@ class void_INCEpTION_UI:
 
 
 class AgentfunctionsToolcalling():
-    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_getstate) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_getstate, testing=False) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
         self.callback_getstate = callback_getstate
+        self.testing = testing
 
         self.valid_functions = {
             "search_context": self.search_context,
-            "check_annotations": self.check_annotations,
+            "search_annotations": self.search_annotations,
             "summarize_document": self.summarize_document,
             "classify_span": self.classify_span,
             "get_scope": self.get_scope,
@@ -42,7 +43,7 @@ class AgentfunctionsToolcalling():
             "respond": self.respond
         }
 
-    def search_context(self) -> str:
+    def search_context(self, key_phrase: str) -> str:
         """Search for relevent chunks in the text based on the given criteria"""
         """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
         logger = logging.getLogger("functions")
@@ -51,12 +52,12 @@ class AgentfunctionsToolcalling():
         logger.debug(self.callback_getstate())
         # call llm to retrieve criteria, used for the vector store
         # TODO: maybe make json with {reason: "..", keyphrase: ".."} to get better results
-        criteria = self.callback_llm("""Your job is to extract key phrases from a query.
-The new phrase is used to look up similar sentences in a database.
-Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
+#         criteria = self.callback_llm("""Your job is to extract key phrases from a query.
+# The new phrase is used to look up similar sentences in a database.
+# Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
 
         # get relevant chunks from vector store
-        contxt = self.softwareenv.get_vectorstore().similarity_search(criteria)  # , filter={"doc_id": 0}
+        contxt = self.softwareenv.get_vectorstore().similarity_search(key_phrase)  # , filter={"doc_id": 0}
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context
@@ -77,7 +78,7 @@ Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
         # so returning the actual context is important for the llm to make its decision
         return contxt_string
 
-    def check_annotations(self) -> str:
+    def search_annotations(self) -> str:
         """Iterate over annotations either solely annotations or with sliding context-window"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\ncurrent state:")
@@ -113,12 +114,16 @@ Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
 
         return return_result
 
-    def classify_span(self) -> list[tuple[str, tuple[int, int]]]:
+    def classify_span(self, classification_query: str) -> list[tuple[str, tuple[int, int]]]:
         """Iterates over text determined by the scope and classifies text based on the criteria
             First tuple element is the categorization, second is start and end index of the classified text"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\ncurrent state:")
         logger.debug(self.callback_getstate())
+
+        if self.testing:
+            self.callback_getstate()['annotation_positions'] = []
+            return f"I classified relevant spans and saved them in memory under 'annotation_positions'"
 
         if 'scope' not in self.callback_getstate().keys():
             return 'There is currently no scope in the memory'
@@ -150,7 +155,7 @@ Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
 
         for text in text_chunks:
             return_result = self.callback_llm(
-                get_system_prompt_classify(self.callback_getstate()["user_query"]), text)
+                get_system_prompt_classify(classification_query), text)
 
             # hacky fix for \r\n\r\n -> \n\n problem
             # maybe will break other documents that dont use \r\n
