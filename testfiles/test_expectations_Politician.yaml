@@ -68,7 +68,7 @@ testcases:
 
   - prompt: Check if the named entity annotations are correct.
     expectations:
-      - check_annotations
+      - search_annotations
       - respond
     scope: current document
     layer:

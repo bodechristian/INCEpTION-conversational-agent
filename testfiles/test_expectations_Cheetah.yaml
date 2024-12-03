@@ -18,14 +18,6 @@ testcases:
     layer:
     feature:
 
-  - prompt: How often is the word 'cheetah' annotated?
-    expectations:
-      - check_annotations
-      - respond
-    scope: current document
-    layer:
-    feature:
-
   - prompt: Annotate every animal as either four-legged, two-legged or other.
     expectations:
       - get_scope
@@ -37,9 +29,17 @@ testcases:
     layer: Animal
     feature: numberoflegs
 
+  - prompt: How often is the word 'cheetah' annotated?
+    expectations:
+      - search_annotations
+      - respond
+    scope: current document
+    layer:
+    feature:
+
   - prompt: Check if every annotation with the dog label also accurately describes the animal cheetah
     expectations:
-      - check_annotations
+      - search_annotations
       - respond
     scope: current document
     layer:
