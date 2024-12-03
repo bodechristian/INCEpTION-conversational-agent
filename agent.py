@@ -13,26 +13,35 @@ from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 
 from toolcalling_functioncalls import AgentfunctionsToolcalling
+import utils
 
 
 class Agent():
 
     # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview
-    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False) -> None:
+    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False) -> None:
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
         self.state = {}
         self.toolcalling_functions = toolcalling_functions
+        self.testing = testing
+        self.debug = debug
 
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
         self.logger = logging.getLogger("output")
-        self.logger.setLevel(logging.INFO)
+        if debug:
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
         self.logger.addHandler(stdout)
         l = logging.getLogger("functions")
-        l.setLevel(logging.INFO)
+        if debug:
+            l.setLevel(logging.DEBUG)
+        else:
+            l.setLevel(logging.INFO)
         l.addHandler(stdout)
 
         # initialize api and software env
@@ -40,7 +49,8 @@ class Agent():
 
         self.softwareenv = MockAnnotationTool()
         if toolcalling_functions:
-            self.functionclass = AgentfunctionsToolcalling(self.softwareenv, self.call_llm, self.get_state)
+            self.functionclass = AgentfunctionsToolcalling(
+                self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
         else:
             self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
             self.parser = Dollarparser(self.functionclass)
@@ -110,10 +120,6 @@ class Agent():
 
             },
             {
-                'role': 'assistant',
-                'content': f"Your current memory contains values for {", ".join(self.state.keys())}"
-            },
-            {
                 "role": "user",
                 "content": user_query,
             }
@@ -131,6 +137,7 @@ class Agent():
         if chat_completion.choices[0].finish_reason == "stop":
             # no tools need to be called, just respond
             self.logger.info(TOOLCALLING_OUTPUT, return_result.content)
+            return messages
         else:
             # tools are called, keep calling them until llm says stop
             while chat_completion.choices[0].finish_reason != "stop":
@@ -146,7 +153,8 @@ class Agent():
                         response = func(**arguments)
                         # append functioncall and the response to LLM messages
                         messages.append(return_result)
-                        messages.append({'role': 'tool', 'content': response, 'tool_call_id': tool_call.id})
+                        messages.append({'role': 'tool', 'content': response,
+                                        'tool_call_id': tool_call.id, 'name': tool_call.function.name})
                 [self.logger.debug(m) for m in messages]
                 # call LLM again with new appended messages
                 chat_completion = self.client_toolcalling.chat.completions.create(
@@ -160,6 +168,9 @@ class Agent():
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             self.functionclass.respond()
+            self.logger.info(return_result.content)
+            self.logger.debug(f"Functions that were called: {utils.get_toolcalls_from_messages(messages)}")
+            return messages
 
     def run(self):
         # differentiate between toolcalling method and planner method
@@ -182,9 +193,10 @@ class Agent():
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--toolcalling", action='store_true')
+    parser.add_argument("--debug", action='store_true')
     args = parser.parse_args()
 
     # create conversational agent
-    agent = Agent(toolcalling_functions=args.toolcalling)
+    agent = Agent(toolcalling_functions=args.toolcalling, debug=args.debug)
     # run it
     agent.run()
