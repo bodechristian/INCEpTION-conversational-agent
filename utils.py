@@ -4,8 +4,9 @@ import logging
 from os import listdir, getcwd
 from os.path import join
 
-if __name__ == "__main__":
-    # Removes citation brackets ('[..]') after sentence endings
+
+def clean_wikipedia_articles():
+    """Removes citation brackets ('[..]') after sentence endings"""
     # This is done because INCEpTION doesn't recognize the sentence endings otherwise
     for filename in listdir(join(getcwd(), "corpi")):
         if filename.startswith("cleaned"):
@@ -17,3 +18,7 @@ if __name__ == "__main__":
         with open(join(getcwd(), "corpi", f"cleaned{filename}"), "w", encoding="utf8") as f:
             f.write(new_text)
         logging.info("cleaned %s", filepath)
+
+
+def get_toolcalls_from_messages(messages):
+    return [m['name'] for m in messages if isinstance(m, dict) and m['role'] == 'tool']
