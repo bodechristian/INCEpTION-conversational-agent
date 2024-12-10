@@ -1,0 +1,13 @@
+testcases:
+  - prompt: Identify every animal in every document
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer_and_feature
+      - highlight
+      - respond
+    scope: all documents
+    layer: Animal
+    feature: Species
+    exclude:
+      - annotate

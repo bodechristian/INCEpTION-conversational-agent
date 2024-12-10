@@ -22,3 +22,7 @@ def clean_wikipedia_articles():
 
 def get_toolcalls_from_messages(messages):
     return [m['name'] for m in messages if isinstance(m, dict) and m['role'] == 'tool']
+
+
+def remove_file_ending(_str):
+    return ".".join(_str.split('.')[:-1])

@@ -41,19 +41,22 @@ class EvaluateActObserve():
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(stdout)
 
-    def setup_agent(self, client, model):
+    def setup_agent(self, client, model, testing=False):
         # clear loggers from agent to avoid double logging
         l = logging.getLogger("output")
         l.handlers.clear()
         l = logging.getLogger("functions")
         l.handlers.clear()
         # create new agent
-        self.agent = Agent(client=client, model=model, toolcalling_functions=True, testing=True)
+        # testing skips the iterative classifying step. can be used to just retrieve which functions are called
+        self.agent = Agent(client=client, model=model, toolcalling_functions=True, testing=testing)
 
     def evaluate(self):
         for file in self.filenames:
             for client, model in self.models:
                 self.setup_agent(client, model)
+                # switch open document to corresponding testfile
+                self.agent.softwareenv.set_current_document_by_name(utils.remove_file_ending(file))
                 # logging to file
                 self.logged_data_per_run = {
                     "method": "Act and Observe",
@@ -108,8 +111,7 @@ class EvaluateActObserve():
             runs.append(results_dict)
             # logging
             self.logger.debug(f"\n{results_dict}")
-        self.logger.info(
-            "\n%d/%d functions were correctly called from the planner.", correct_results, i+1)
+        self.logger.info("\n%d/%d functions were correctly called from the planner.", correct_results, i+1)
         self.logged_data_per_run["tests"].append({
             "test_name": "called_functions",
             "correct": correct_results,
@@ -119,8 +121,7 @@ class EvaluateActObserve():
         })
 
     def _eval_scope(self, file):
-        self.logger.info(
-            "\nTesting scope detection on %s", file)
+        self.logger.info("\nTesting scope detection on %s", file)
         start_time = time.time()
         correct_results = 0
         runs = []
@@ -150,8 +151,7 @@ class EvaluateActObserve():
                 "result": scope == pred_scope,
                 "duration": time_testcase,
             })
-        self.logger.info(
-            "\n%d/%d scopes were correctly predicted.", correct_results, i+1)
+        self.logger.info("\n%d/%d scopes were correctly predicted.", correct_results, i+1)
         self.logged_data_per_run["tests"].append({
             "test_name": "scope",
             "correct": correct_results,
@@ -161,8 +161,7 @@ class EvaluateActObserve():
         })
 
     def _eval_layer_and_feature(self, file):
-        self.logger.info(
-            "\nTesting layer and feature detection on %s", file)
+        self.logger.info("\nTesting layer and feature detection on %s", file)
         start_time = time.time()
         correct_results = 0
         runs = []
@@ -193,10 +192,8 @@ class EvaluateActObserve():
 
             # logging
             self.logger.debug("\nAnalyzing prompt: %s", prompt)
-            self.logger.debug(
-                "Expected layer and feature: %s, %s", layer, feature)
-            self.logger.debug(
-                "Detected layer and feature: %s, %s", pred_layer, pred_feature)
+            self.logger.debug("Expected layer and feature: %s, %s", layer, feature)
+            self.logger.debug("Detected layer and feature: %s, %s", pred_layer, pred_feature)
             self.logger.debug("Correct Result?: %s", correct_result)
 
             runs.append({
@@ -219,6 +216,7 @@ class EvaluateActObserve():
 
 if __name__ == "__main__":
     models = [("groq", "llama3-70b-8192"), ("cerebras", "llama3.1-70b")]
-    filenames = ["test_expectations_Cheetah.yaml", "test_expectations_Politician.yaml"]
+    # filenames = ["wikipedia_cheetah.yaml", "cleanedwikipedia_2016_pres_election.yaml"]
+    filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluateActObserve(models=models[1:2], filenames=filenames[:1]).evaluate()
+    EvaluateActObserve(models=models[1:2], filenames=filenames).evaluate()

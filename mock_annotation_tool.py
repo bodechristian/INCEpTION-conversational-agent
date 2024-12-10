@@ -3,6 +3,7 @@ import cassis
 import os
 import time
 import logging
+import utils
 
 from os import getcwd, listdir
 from os.path import join
@@ -19,6 +20,7 @@ from langchain_ollama import OllamaEmbeddings
 class MockAnnotationTool():
     # id: cas_json
     documents = {}
+    map_idtoname, map_nametoid = dict(), dict()
     next_id = 0
     current_document_id = -1
     folderpath = join(getcwd(), "documents")
@@ -68,6 +70,8 @@ class MockAnnotationTool():
                     typesystem.create_type(name='highlights')
                     cas.to_json(join(self.folderpath, filename))
                 self.documents[self.next_id] = cas
+                self.map_idtoname[self.next_id] = utils.remove_file_ending(filename)
+                self.map_nametoid[utils.remove_file_ending(filename)] = self.next_id
 
                 # add to vector store
                 if store_cas:
@@ -116,6 +120,14 @@ class MockAnnotationTool():
             # logger.debug("set_current_document id parameter was illegal")
             return
         self.current_document_id = id
+
+    def set_current_document_by_name(self, name: str):
+        if name not in self.map_nametoid:
+            # logger.debug("set_current_document id parameter was illegal")
+            print("wrong name innit")
+            return
+        print(f"switching to {self.map_nametoid[name]}")
+        self.current_document_id = self.map_nametoid[name]
 
     def get_current_document(self):
         return self.documents[self.current_document_id]
