@@ -81,6 +81,7 @@ class EvaluateActObserve():
             # extract columns from yaml
             prompt = testcase["prompt"]
             expected_results = set(testcase["expectations"])
+            exclude = testcase.get('exclude', [])
 
             # prompt planner
             start_time_testcase = time.time()
@@ -91,22 +92,22 @@ class EvaluateActObserve():
             detected = set(utils.get_toolcalls_from_messages(detected_messages))
             detected.add('respond')
 
-            # see if correct functions were called (order irrelevant)
-            correct_result = detected == expected_results
+            # see if AT LEAST correct functions were called (order here irrelevant)
+            correct_result = (expected_results <= detected) and set(exclude).isdisjoint(detected)
             correct_results += correct_result
-            runs.append({
+            str_expected_results = ", ".join(sorted(list(expected_results), key=str.lower))
+            str_predicted_results = ", ".join(sorted(list(detected), key=str.lower))
+            results_dict = {
                 "prompt": prompt,
-                "expected": ", ".join(sorted(list(expected_results), key=str.lower)),
-                "predicted": ", ".join(sorted(list(detected), key=str.lower)),
+                "expected": str_expected_results,
+                "exclude": exclude,
+                "predicted": str_predicted_results,
                 "result": correct_result,
                 "duration": time_testcase,
-            })
-
+            }
+            runs.append(results_dict)
             # logging
-            self.logger.debug("\nAnalyzing prompt: %s", prompt)
-            self.logger.debug("Expected functioncalls: %s", expected_results)
-            self.logger.debug("Detected functioncalls: %s", detected)
-            self.logger.debug("Correct Result?: %s", correct_result)
+            self.logger.debug(f"\n{results_dict}")
         self.logger.info(
             "\n%d/%d functions were correctly called from the planner.", correct_results, i+1)
         self.logged_data_per_run["tests"].append({

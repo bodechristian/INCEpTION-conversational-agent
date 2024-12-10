@@ -9,6 +9,8 @@ testcases:
     scope: all documents
     layer: Animal
     feature: Species
+    exclude:
+      - annotate
 
   - prompt: How fast does a cheetah run?
     expectations:
@@ -100,3 +102,16 @@ testcases:
     scope: current document
     layer:
     feature:
+
+  - prompt: Identify every animal in every document, but dont annotate them directly.
+    expectations:
+      - get_scope
+      - classify_span
+      - get_layer_and_feature
+      - highlight
+      - respond
+    exclude:
+      - annotate
+    scope: all documents
+    layer: Animal
+    feature: Species

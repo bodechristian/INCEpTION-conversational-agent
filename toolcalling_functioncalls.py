@@ -47,8 +47,7 @@ class AgentfunctionsToolcalling():
         """Search for relevent chunks in the text based on the given criteria"""
         """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
         logger = logging.getLogger("functions")
-        logger.debug(
-            "inside search\ncurrent state:")
+        logger.debug("inside search\ncurrent state:")
         logger.debug(self.callback_getstate())
         # call llm to retrieve criteria, used for the vector store
         # TODO: maybe make json with {reason: "..", keyphrase: ".."} to get better results

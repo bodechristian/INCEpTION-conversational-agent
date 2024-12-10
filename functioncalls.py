@@ -46,8 +46,7 @@ class Agentfunctions():
         """Search for relevent chunks in the text based on the given criteria"""
         """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
         logger = logging.getLogger("functions")
-        logger.debug(
-            "inside search\tparameters:\tcriteria_query=%s", criteria_query)
+        logger.debug("inside search\tparameters:\tcriteria_query=%s", criteria_query)
         # get relevant chunks from vector store
         contxt = self.softwareenv.get_vectorstore().similarity_search(criteria_query)  # , filter={"doc_id": 0}
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
