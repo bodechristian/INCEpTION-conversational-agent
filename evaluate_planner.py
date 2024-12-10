@@ -1,10 +1,10 @@
 import logging.config
-import unittest
 import os
 import logging
 import sys
 import yaml
 import json
+import utils
 import time
 
 from os import getcwd
@@ -59,7 +59,8 @@ class EvaluatePlanner():
                     "tests": []
                 }
 
-                self._eval_correctness_functions(file)
+                self._eval_end_to_end(file)
+                # self._eval_correctness_functions(file)
                 # self._eval_scope(file)
                 # self._eval_layer_and_feature(file)
 
@@ -67,6 +68,45 @@ class EvaluatePlanner():
         # Convert and write JSON object to file
         with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
+
+    def _eval_end_to_end(self, file):
+        self.logger.info("\nTesting end to end on %s", file)
+        start_time = time.time()
+        runs = []
+        times_testcases = []
+        for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
+            # extract columns from yaml
+            prompt = testcase["prompt"]
+
+            # prompt planner
+            start_time_testcase = time.time()
+            llm_response = self.agent.call_llm_planner(prompt, execute_functions=False)
+
+            # extract only the functions from the planner response
+            funcs = self.agent.parser.analyze_functions(llm_response)
+            detected = set([func for _, func, _ in funcs])
+            result = self.agent.parser.call_functions(funcs)
+            time_testcase = time.time() - start_time_testcase
+
+            str_predicted_results = ", ".join(sorted(list(detected), key=str.lower))
+
+            results_dict = {
+                "prompt": prompt,
+                "executed": str_predicted_results,
+                "duration": time_testcase,
+                "error": result == 'Unable to parse LLM response'
+            }
+            times_testcases.append(time_testcase)
+            runs.append(results_dict)
+            # logging
+            self.logger.debug(f"\n{results_dict}")
+        self.logged_data_per_run["tests"].append({
+            "test_name": "end-to-end test",
+            "amount": i+1,
+            "duration": time.time() - start_time,
+            "average_testcase_duration": sum(times_testcases)/len(times_testcases),
+            "runs": runs
+        })
 
     def _eval_correctness_functions(self, file):
         self.logger.info("\nTesting correct planning on %s", file)
@@ -214,4 +254,4 @@ if __name__ == "__main__":
     # filenames = ["wikipedia_cheetah.yaml", "cleanedwikipedia_2016_pres_election.yaml"]
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluatePlanner(models=models[1:2], filenames=filenames[:1]).evaluate()
+    EvaluatePlanner(models=models[1:2], filenames=filenames).evaluate()

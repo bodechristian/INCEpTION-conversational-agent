@@ -29,32 +29,35 @@ class Dollarparser():
         return functions
 
     def call_functions(self, functions):
-        cache_return_values = dict()
-        for num, function_to_call, parameters in functions:
-            # analyze the parameters and read them from the cache if nessecary
-            json_kwargs = {}
-            if parameters:
-                # regex splits at commas that are not in quotes
-                # old: r'(?!\B"[^"]*),\s?(?![^"]*"\B)' <- failed at empty quotes as a parameter, new one was created with chatgpt help
-                parameters = re.split(
-                    r',\s?(?=(?:(?:[^"]*"){2})*[^"]*$)', parameters)
-                for p in parameters:
-                    kw, val = p.split("=")
-                    if val.startswith("$"):
-                        json_kwargs[kw] = cache_return_values[val[1:]]
-                    else:
-                        json_kwargs[kw] = val.strip('"')
-            # call the actual function
-            return_value = self.functionclass.valid_functions[function_to_call](
-                **json_kwargs)
-            # save return value in cache under the respective line number
-            if return_value:
-                cache_return_values[num] = return_value
-            else:  # called function returns None
-                cache_return_values[num] = ""  # soll evtl fehler werfen?
-        # returns the last cache entry (atm assumed to be response)
-        if (el := cache_return_values[str(len(functions))]) != "":
-            return el
+        try:
+            cache_return_values = dict()
+            for num, function_to_call, parameters in functions:
+                # analyze the parameters and read them from the cache if nessecary
+                json_kwargs = {}
+                if parameters:
+                    # regex splits at commas that are not in quotes
+                    # old: r'(?!\B"[^"]*),\s?(?![^"]*"\B)' <- failed at empty quotes as a parameter, new one was created with chatgpt help
+                    parameters = re.split(
+                        r',\s?(?=(?:(?:[^"]*"){2})*[^"]*$)', parameters)
+                    for p in parameters:
+                        kw, val = p.split("=")
+                        if val.startswith("$"):
+                            json_kwargs[kw] = cache_return_values[val[1:]]
+                        else:
+                            json_kwargs[kw] = val.strip('"')
+                # call the actual function
+                return_value = self.functionclass.valid_functions[function_to_call](**json_kwargs)
+                # save return value in cache under the respective line number
+                if return_value:
+                    cache_return_values[num] = return_value
+                else:  # called function returns None
+                    cache_return_values[num] = ""  # soll evtl fehler werfen?
+            # returns the last cache entry (assumed to be response)
+            if (el := cache_return_values[str(len(functions))]) != "":
+                return el
+        except:
+            # Maybe TODO: create custom exception Class
+            return "Unable to parse LLM response"
 
     def analyze_and_execute_dollar_syntax(self, input_string: str) -> None:
         """Analyzes and executes functions from a specific syntax.

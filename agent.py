@@ -97,12 +97,10 @@ class Agent():
         llm_response = self.call_llm(system_prompt_planner, user_query)
         # printing response
         self.logger.debug("System prompt:\n%s", system_prompt_planner)
-        self.logger.info(LOGGER_PLANNER_INPUT,
-                         user_query, llm_response)
+        self.logger.info(LOGGER_PLANNER_INPUT, user_query, llm_response)
         if execute_functions:
             # call parser and functions
-            parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(
-                llm_response)
+            parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(llm_response)
             self.logger.info(LOGGER_PLANNER_RESPONSE, parsed_dollar_syntax)
         return llm_response
 
@@ -125,14 +123,17 @@ class Agent():
             }
         ]
         [self.logger.debug(m) for m in messages]
-        chat_completion = self.client_toolcalling.chat.completions.create(
-            messages=messages,
-            model=self.model_toolcalling,
-            tools=TOOLCALLING_TOOLS,
-            temperature=0.0,
-            parallel_tool_calls=False,
-        )
-        return_result = chat_completion.choices[0].message
+        try:
+            chat_completion = self.client_toolcalling.chat.completions.create(
+                messages=messages,
+                model=self.model_toolcalling,
+                tools=TOOLCALLING_TOOLS,
+                temperature=0.0,
+                parallel_tool_calls=False,
+            )
+            return_result = chat_completion.choices[0].message
+        except:
+            return 'Unable to parse LLM response'
 
         if chat_completion.choices[0].finish_reason == "stop":
             # no tools need to be called, just respond
@@ -157,14 +158,17 @@ class Agent():
                                         'tool_call_id': tool_call.id, 'name': tool_call.function.name})
                 [self.logger.debug(m) for m in messages]
                 # call LLM again with new appended messages
-                chat_completion = self.client_toolcalling.chat.completions.create(
-                    messages=messages,
-                    model=self.model_toolcalling,
-                    tools=TOOLCALLING_TOOLS,
-                    temperature=0.0,
-                    parallel_tool_calls=False,
-                )
-                return_result = chat_completion.choices[0].message
+                try:
+                    chat_completion = self.client_toolcalling.chat.completions.create(
+                        messages=messages,
+                        model=self.model_toolcalling,
+                        tools=TOOLCALLING_TOOLS,
+                        temperature=0.0,
+                        parallel_tool_calls=False,
+                    )
+                    return_result = chat_completion.choices[0].message
+                except:
+                    return 'Unable to parse LLM response'
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             self.functionclass.respond()

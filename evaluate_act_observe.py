@@ -66,7 +66,8 @@ class EvaluateActObserve():
                     "tests": []
                 }
 
-                self._eval_correctness_functions(file)
+                self._eval_end_to_end(file)
+                # self._eval_correctness_functions(file)
                 # self._eval_scope(file)
                 # self._eval_layer_and_feature(file)
 
@@ -74,6 +75,46 @@ class EvaluateActObserve():
         # Convert and write JSON object to file
         with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
+
+    def _eval_end_to_end(self, file):
+        self.logger.info("\nTesting end to end on%s", file)
+        start_time = time.time()
+        runs = []
+        times_testcases = []
+        for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
+            # extract columns from yaml
+            prompt = testcase["prompt"]
+
+            # prompt planner
+            start_time_testcase = time.time()
+            detected_messages = self.agent.call_llm_toolcalling(user_query=prompt)
+            time_testcase = time.time() - start_time_testcase
+
+            if detected_messages != 'Unable to parse LLM response':
+                # extract only the functions from the act/observe response
+                detected = utils.get_toolcalls_from_messages(detected_messages)
+                detected.append('respond')
+                str_predicted_results = ", ".join(detected)
+            else:
+                str_predicted_results = 'parsing error'
+
+            results_dict = {
+                "prompt": prompt,
+                "executed": str_predicted_results,
+                "duration": time_testcase,
+                "error": detected_messages == 'Unable to parse LLM response'
+            }
+            times_testcases.append(time_testcase)
+            runs.append(results_dict)
+            # logging
+            self.logger.debug(f"\n{results_dict}")
+        self.logged_data_per_run["tests"].append({
+            "test_name": "called_functions",
+            "amount": i+1,
+            "duration": time.time() - start_time,
+            "average_testcase_duration": sum(times_testcases)/len(times_testcases),
+            "runs": runs,
+        })
 
     def _eval_correctness_functions(self, file):
         self.logger.info("\nTesting correct functions on %s", file)
