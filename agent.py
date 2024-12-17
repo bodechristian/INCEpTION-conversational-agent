@@ -46,15 +46,9 @@ class Agent():
 
         # initialize api and software env
         self.model = model
-
         self.softwareenv = MockAnnotationTool()
-        if toolcalling_functions:
-            self.functionclass = AgentfunctionsToolcalling(
-                self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
-        else:
-            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
-            self.parser = Dollarparser(self.functionclass)
 
+        self.set_toolcalling_functions(toolcalling_functions)
         self.set_client(client)
         # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
         self.client_toolcalling = Groq(
@@ -71,6 +65,15 @@ class Agent():
             self.client = Cerebras(
                 api_key=self.CEREBRAS_API_KEY,
             )
+
+    def set_toolcalling_functions(self, is_toolcalling):
+        self.toolcalling_functions = is_toolcalling
+        if is_toolcalling:
+            self.functionclass = AgentfunctionsToolcalling(
+                self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
+        else:
+            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
+            self.parser = Dollarparser(self.functionclass)
 
     def call_llm(self, system_prompt, user_prompt):
         chat_completion = self.client.chat.completions.create(
@@ -178,6 +181,15 @@ class Agent():
             self.logger.debug(f"Functions that were called: {utils.get_toolcalls_from_messages(messages)}")
             return messages
 
+    def direct(self, prompt):
+        # differentiate between toolcalling method and planner method
+        if self.toolcalling_functions:
+            # call the toolcalling method
+            self.call_llm_toolcalling(prompt)
+        else:
+            # call the llm planner method
+            self.call_llm_planner(prompt)
+
     def run(self):
         # differentiate between toolcalling method and planner method
         if self.toolcalling_functions:
@@ -200,9 +212,19 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--toolcalling", action='store_true')
     parser.add_argument("--debug", action='store_true')
+    parser.add_argument("--compare", type=str)
     args = parser.parse_args()
 
-    # create conversational agent
-    agent = Agent(toolcalling_functions=args.toolcalling, debug=args.debug)
-    # run it
-    agent.run()
+    if args.compare:
+        # create conversational agent
+        agent = Agent(toolcalling_functions=False, debug=args.debug)
+        # call planner
+        agent.direct(args.compare)
+        # call tool funtions
+        agent.set_toolcalling_functions(True)
+        agent.direct(args.compare)
+    else:
+        # create conversational agent
+        agent = Agent(toolcalling_functions=args.toolcalling, debug=args.debug)
+        # run it
+        agent.run()
