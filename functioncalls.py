@@ -59,27 +59,22 @@ class Agentfunctions():
             get_system_prompt_search_context(contxt_string),
             criteria_query
         )
-        print(return_result)
         try:
             # try reading the return json and extracting the most relevant text
             json_response = json.loads(return_result)
-            print(json_response)
             id = int(json_response['id']) - 1
             text = json_response['text']
             if text in contxt[id].page_content:
-                print(1)
                 best_contxt = contxt[id]
                 start_idx = best_contxt.metadata['start_index'] + best_contxt.page_content.index(text)
                 end_idx = start_idx + len(text)
             else:
-                print(2)
                 # if text cant be found in the context, its most likely an LLM halluzination, so do fallback
                 best_contxt = contxt[0]
                 start_idx = best_contxt.metadata["start_index"]
                 end_idx = start_idx + len(best_contxt.page_content)
         except:
             # as a fallback if json is unreadable, just highlight most similar context from vector store
-            print(3)
             best_contxt = contxt[0]
             start_idx = best_contxt.metadata["start_index"]
             end_idx = start_idx + len(best_contxt.page_content)
@@ -125,8 +120,6 @@ class Agentfunctions():
         if scope == "current document":
             txt = self.softwareenv.get_current_documenttext()
         return_result = self.callback_llm(SYSTEM_PROMPT_SUMMARIZE, txt)
-        print("\n\nHERE THE REUSLT")
-        print(return_result)
 
         return return_result
 

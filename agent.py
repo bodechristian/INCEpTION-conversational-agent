@@ -132,7 +132,8 @@ class Agent():
                 parallel_tool_calls=False,
             )
             return_result = chat_completion.choices[0].message
-        except:
+        except Exception as error:
+            self.logger.debug(error)
             return 'Unable to parse LLM response'
 
         if chat_completion.choices[0].finish_reason == "stop":
@@ -167,7 +168,8 @@ class Agent():
                         parallel_tool_calls=False,
                     )
                     return_result = chat_completion.choices[0].message
-                except:
+                except Exception as error:
+                    self.logger.debug(error)
                     return 'Unable to parse LLM response'
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
