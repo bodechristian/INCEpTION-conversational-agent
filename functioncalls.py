@@ -52,13 +52,44 @@ class Agentfunctions():
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context
-        best_contxt = contxt[0]
-        _scope = self.get_scope(user_query=criteria_query)
-        self.highlight(scope=_scope, text_to_highlight=[
-                       (criteria_query, (best_contxt.metadata["start_index"], best_contxt.metadata["start_index"] + len(best_contxt.page_content)))])
-
         # create return string
         contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i, el in enumerate(contxt)])
+        # ask LLM, which context is the best and which segment of that context is relevant
+        return_result = self.callback_llm(
+            get_system_prompt_search_context(contxt_string),
+            criteria_query
+        )
+        print(return_result)
+        try:
+            # try reading the return json and extracting the most relevant text
+            json_response = json.loads(return_result)
+            print(json_response)
+            id = int(json_response['id']) - 1
+            text = json_response['text']
+            if text in contxt[id].page_content:
+                print(1)
+                best_contxt = contxt[id]
+                start_idx = best_contxt.metadata['start_index'] + best_contxt.page_content.index(text)
+                end_idx = start_idx + len(text)
+            else:
+                print(2)
+                # if text cant be found in the context, its most likely an LLM halluzination, so do fallback
+                best_contxt = contxt[0]
+                start_idx = best_contxt.metadata["start_index"]
+                end_idx = start_idx + len(best_contxt.page_content)
+        except:
+            # as a fallback if json is unreadable, just highlight most similar context from vector store
+            print(3)
+            best_contxt = contxt[0]
+            start_idx = best_contxt.metadata["start_index"]
+            end_idx = start_idx + len(best_contxt.page_content)
+
+        ann_pos = [(criteria_query, (start_idx, end_idx))]
+
+        # highlight best context
+        best_contxt = contxt[0]
+        _scope = self.get_scope(user_query=criteria_query)
+        self.highlight(scope=_scope, text_to_highlight=ann_pos)
 
         return contxt_string
 

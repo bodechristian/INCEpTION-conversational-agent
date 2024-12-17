@@ -55,8 +55,9 @@ class Dollarparser():
             # returns the last cache entry (assumed to be response)
             if (el := cache_return_values[str(len(functions))]) != "":
                 return el
-        except:
+        except Exception as error:
             # Maybe TODO: create custom exception Class
+            print(error)
             return "Unable to parse LLM response"
 
     def analyze_and_execute_dollar_syntax(self, input_string: str) -> None:

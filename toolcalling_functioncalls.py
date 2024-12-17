@@ -49,27 +49,44 @@ class AgentfunctionsToolcalling():
         logger = logging.getLogger("functions")
         logger.debug("inside search\ncurrent state:")
         logger.debug(self.callback_getstate())
-        # call llm to retrieve criteria, used for the vector store
-        # TODO: maybe make json with {reason: "..", keyphrase: ".."} to get better results
-#         criteria = self.callback_llm("""Your job is to extract key phrases from a query.
-# The new phrase is used to look up similar sentences in a database.
-# Only respond with the keyphrase.""", self.callback_getstate()['user_query'])
 
         # get relevant chunks from vector store
         contxt = self.softwareenv.get_vectorstore().similarity_search(key_phrase)  # , filter={"doc_id": 0}
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context
-        # TODO: ask which contexts are relevant to answer and which further which segments of those are important
-        best_contxt = contxt[0]
-        self.callback_getstate()['annotation_positions'] = [
-            ("", (best_contxt.metadata["start_index"], best_contxt.metadata["start_index"] + len(best_contxt.page_content)))]
-        self.get_scope()
-        self.get_layer_and_feature()
-        self.highlight()
-
         # create return string
         contxt_string = "\n\n".join([f"{i+1}: {el.page_content}" for i, el in enumerate(contxt)])
+        # ask LLM, which context is the best and which segment of that context is relevant
+        return_result = self.callback_llm(
+            get_system_prompt_search_context(contxt_string),
+            self.callback_getstate()['user_query']
+        )
+        try:
+            # try reading the return json and extracting the most relevant text
+            json_response = json.loads(return_result)
+            id = int(json_response['id']) - 1
+            text = json_response['text']
+            if text in contxt[id].page_content:
+                best_contxt = contxt[id]
+                start_idx = best_contxt.metadata['start_index'] + best_contxt.page_content.index(text)
+                end_idx = start_idx + len(text)
+            else:
+                # if text cant be found in the context, its most likely an LLM halluzination, so do fallback
+                best_contxt = contxt[0]
+                start_idx = best_contxt.metadata["start_index"]
+                end_idx = start_idx + len(best_contxt.page_content)
+        except:
+            # as a fallback if json is unreadable, just highlight most similar context from vector store
+            best_contxt = contxt[0]
+            start_idx = best_contxt.metadata["start_index"]
+            end_idx = start_idx + len(best_contxt.page_content)
+
+        ann_pos = [(key_phrase, (start_idx, end_idx))]
+        self.callback_getstate()['annotation_positions'] = ann_pos
+        self.get_scope()
+        self.highlight()
+
         # self.callback_getstate()['context'] = contxt_string
 
         # return 'I saved relevant context in the memory.', leads to the llm calling summarize

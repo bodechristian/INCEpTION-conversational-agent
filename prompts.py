@@ -95,6 +95,25 @@ Context:
 User's query:"""
 
 
+def get_system_prompt_search_context(ctxt_string):
+    return f"""Answer which segment is best to answer a given user query. Use the number as the id.
+Also specify which segment of that text helps the most to answer the user query and write it word for word in the 'text' field.
+Respond only in JSON:
+
+JSON Format:
+{{
+    "id": ..,
+    "text": ..,
+    "reason": ..
+}}
+
+segments:
+{ctxt_string}
+
+user query:
+"""
+
+
 def get_system_prompt_getlayer(landfs):
     lst_layer_and_features = []
     for k in landfs.keys():
