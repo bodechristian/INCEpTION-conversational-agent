@@ -145,9 +145,9 @@ class Agent():
         ]
         [self.logger.debug(m) for m in messages]
         try:
-            chat_completion = self.client_toolcalling.chat.completions.create(
+            chat_completion = self.client.chat.completions.create(
                 messages=messages,
-                model=self.model_toolcalling,
+                model=self.model,
                 tools=TOOLCALLING_TOOLS,
                 temperature=0.0,
                 parallel_tool_calls=False,
@@ -174,11 +174,15 @@ class Agent():
                     # execute each of them (should only be one usually)
                     for tool_call in return_result.tool_calls:
                         self.logger.debug(f"CALLED: {tool_call}\n")
-                        # extract function and arguments
-                        func = self.functionclass.valid_functions[tool_call.function.name]
-                        arguments = json.loads(tool_call.function.arguments)
-                        # execute function
-                        response = func(**arguments)
+                        try:
+                            # extract function and arguments
+                            func = self.functionclass.valid_functions[tool_call.function.name]
+                            arguments = json.loads(tool_call.function.arguments)
+                            # execute function
+                            response = func(**arguments)
+                        except Exception as error:
+                            self.logger.debug(error)
+                            return 'Unable to parse LLM response'
                         # append functioncall and the response to LLM messages
                         messages.append(return_result)
                         messages.append({'role': 'tool', 'content': response,
@@ -186,9 +190,9 @@ class Agent():
                 [self.logger.debug(m) for m in messages]
                 # call LLM again with new appended messages
                 try:
-                    chat_completion = self.client_toolcalling.chat.completions.create(
+                    chat_completion = self.client.chat.completions.create(
                         messages=messages,
-                        model=self.model_toolcalling,
+                        model=self.model,
                         tools=TOOLCALLING_TOOLS,
                         temperature=0.0,
                         parallel_tool_calls=False,
