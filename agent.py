@@ -19,7 +19,7 @@ import utils
 class Agent():
 
     # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview
-    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False) -> None:
+    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
@@ -27,6 +27,9 @@ class Agent():
         self.toolcalling_functions = toolcalling_functions
         self.testing = testing
         self.debug = debug
+
+        self.nb_api_calls = 0
+        self.nb_tokens = 0
 
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
@@ -43,6 +46,9 @@ class Agent():
         else:
             l.setLevel(logging.INFO)
         l.addHandler(stdout)
+        if no_logs:
+            self.logger.setLevel(logging.ERROR)
+            l.setLevel(logging.ERROR)
 
         # initialize api and software env
         self.model = model
@@ -92,6 +98,8 @@ class Agent():
             model=self.model,
             temperature=0.0
         )
+        self.nb_api_calls += 1
+        self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
         llm_response = chat_completion.choices[0].message.content
         return llm_response
 
@@ -134,6 +142,8 @@ class Agent():
                 temperature=0.0,
                 parallel_tool_calls=False,
             )
+            self.nb_api_calls += 1
+            self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
             return_result = chat_completion.choices[0].message
         except Exception as error:
             self.logger.debug(error)
@@ -170,6 +180,8 @@ class Agent():
                         temperature=0.0,
                         parallel_tool_calls=False,
                     )
+                    self.nb_api_calls += 1
+                    self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
                     return_result = chat_completion.choices[0].message
                 except Exception as error:
                     self.logger.debug(error)
@@ -177,7 +189,7 @@ class Agent():
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             self.functionclass.respond()
-            self.logger.info(return_result.content)
+            # self.logger.info(return_result.content)
             self.logger.debug(f"Functions that were called: {utils.get_toolcalls_from_messages(messages)}")
             return messages
 
@@ -217,12 +229,16 @@ if __name__ == "__main__":
 
     if args.compare:
         # create conversational agent
-        agent = Agent(toolcalling_functions=False, debug=args.debug)
+        agent = Agent(toolcalling_functions=True, debug=args.debug)
         # call planner
         agent.direct(args.compare)
+        agent.logger(f"API calls: {agent.nb_api_calls}, total amount of tokens: {agent.nb_tokens}")
+        agent.nb_api_calls = 0
+        agent.nb_tokens = 0
         # call tool funtions
-        agent.set_toolcalling_functions(True)
+        agent.set_toolcalling_functions(False)
         agent.direct(args.compare)
+        agent.logger(f"API calls: {agent.nb_api_calls}, total amount of tokens: {agent.nb_tokens}")
     else:
         # create conversational agent
         agent = Agent(toolcalling_functions=args.toolcalling, debug=args.debug)

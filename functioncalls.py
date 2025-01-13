@@ -48,7 +48,9 @@ class Agentfunctions():
         logger = logging.getLogger("functions")
         logger.debug("inside search\tparameters:\tcriteria_query=%s", criteria_query)
         # get relevant chunks from vector store
-        contxt = self.softwareenv.get_vectorstore().similarity_search(criteria_query)  # , filter={"doc_id": 0}
+        contxt = self.softwareenv.get_vectorstore().similarity_search(criteria_query, filter={
+            # , filter={"doc_id": self.softwareenv.current_document_id}
+            "doc_id": self.softwareenv.current_document_id})
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context

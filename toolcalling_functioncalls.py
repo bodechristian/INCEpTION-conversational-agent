@@ -51,7 +51,9 @@ class AgentfunctionsToolcalling():
         logger.debug(self.callback_getstate())
 
         # get relevant chunks from vector store
-        contxt = self.softwareenv.get_vectorstore().similarity_search(key_phrase)  # , filter={"doc_id": 0}
+        contxt = self.softwareenv.get_vectorstore().similarity_search(key_phrase, filter={
+            # , filter={"doc_id": self.softwareenv.current_document_id}
+            "doc_id": self.softwareenv.current_document_id})
         [logger.debug(f"{i}: doc {d.metadata}\n{d.page_content}\n") for i, d in enumerate(contxt)]
 
         # highlight best context
@@ -84,6 +86,7 @@ class AgentfunctionsToolcalling():
 
         ann_pos = [(key_phrase, (start_idx, end_idx))]
         self.callback_getstate()['annotation_positions'] = ann_pos
+        self.callback_getstate()['search_context'] = contxt_string
         self.get_scope()
         self.highlight()
 

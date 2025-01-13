@@ -87,6 +87,7 @@ User's query:"""
 def get_system_prompt_respond(contxt):
     return f"""You are a conversational assistent in a bigger system. Your job is to respond to the user after already completing multiple steps.
 You get additional context from the previous steps that another assistent in the bigger system completed.
+The user does not know of these steps.
 The context may describe what you've already done or help you answer the query. Respond to the user from the perspective of the bigger system.
 
 Context:
