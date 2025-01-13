@@ -27,28 +27,13 @@ class Agent():
         self.toolcalling_functions = toolcalling_functions
         self.testing = testing
         self.debug = debug
+        self.no_logs = no_logs
 
         self.nb_api_calls = 0
-        self.nb_tokens = 0
+        self.nb_tokens_prompt = 0
+        self.nb_tokens_completion = 0
 
-        # creating logger
-        stdout = logging.StreamHandler(stream=sys.stdout)
-        stdout.setLevel(logging.DEBUG)
-        self.logger = logging.getLogger("output")
-        if debug:
-            self.logger.setLevel(logging.DEBUG)
-        else:
-            self.logger.setLevel(logging.INFO)
-        self.logger.addHandler(stdout)
-        l = logging.getLogger("functions")
-        if debug:
-            l.setLevel(logging.DEBUG)
-        else:
-            l.setLevel(logging.INFO)
-        l.addHandler(stdout)
-        if no_logs:
-            self.logger.setLevel(logging.ERROR)
-            l.setLevel(logging.ERROR)
+        self.initialize_loggers(debug)
 
         # initialize api and software env
         self.model = model
@@ -61,6 +46,28 @@ class Agent():
             api_key=self.GROQ_API_KEY,
         )
         self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"
+
+    def initialize_loggers(self, debug):
+        # creating logger
+        stdout = logging.StreamHandler(stream=sys.stdout)
+        stdout.setLevel(logging.DEBUG)
+        self.logger = logging.getLogger("output")
+        if debug:
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+        self.logger.handlers.clear()
+        self.logger.addHandler(stdout)
+        l = logging.getLogger("functions")
+        if debug:
+            l.setLevel(logging.DEBUG)
+        else:
+            l.setLevel(logging.INFO)
+        l.handlers.clear()
+        l.addHandler(stdout)
+        if self.no_logs:
+            self.logger.setLevel(logging.ERROR)
+            l.setLevel(logging.ERROR)
 
     def set_client(self, client):
         if client == "groq":
@@ -98,8 +105,11 @@ class Agent():
             model=self.model,
             temperature=0.0
         )
+        # count api calls and tokens
         self.nb_api_calls += 1
-        self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
+        self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+        self.nb_tokens_completion += chat_completion.usage.completion_tokens
+
         llm_response = chat_completion.choices[0].message.content
         return llm_response
 
@@ -142,8 +152,11 @@ class Agent():
                 temperature=0.0,
                 parallel_tool_calls=False,
             )
+            # count api calls and tokens
             self.nb_api_calls += 1
-            self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
+            self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+            self.nb_tokens_completion += chat_completion.usage.completion_tokens
+
             return_result = chat_completion.choices[0].message
         except Exception as error:
             self.logger.debug(error)
@@ -180,8 +193,11 @@ class Agent():
                         temperature=0.0,
                         parallel_tool_calls=False,
                     )
+                    # count api calls and tokens
                     self.nb_api_calls += 1
-                    self.nb_tokens += chat_completion.usage.total_tokens  # alternativ .prompt_tokens, .completion_tokens
+                    self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+                    self.nb_tokens_completion += chat_completion.usage.completion_tokens
+
                     return_result = chat_completion.choices[0].message
                 except Exception as error:
                     self.logger.debug(error)

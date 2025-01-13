@@ -81,6 +81,8 @@ class EvaluateActObserve():
         start_time = time.time()
         runs = []
         times_testcases = []
+        nb_tokens_prompt = 0
+        nb_tokens_completion = 0
         for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
             # extract columns from yaml
             prompt = testcase["prompt"]
@@ -102,8 +104,12 @@ class EvaluateActObserve():
                 "prompt": prompt,
                 "executed": str_predicted_results,
                 "duration": time_testcase,
-                "error": detected_messages == 'Unable to parse LLM response'
+                "error": detected_messages == 'Unable to parse LLM response',
+                "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
+                "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
+            nb_tokens_prompt = self.agent.nb_tokens_prompt
+            nb_tokens_completion = self.agent.nb_tokens_completion
             times_testcases.append(time_testcase)
             runs.append(results_dict)
             # logging
@@ -114,6 +120,8 @@ class EvaluateActObserve():
             "duration": time.time() - start_time,
             "average_testcase_duration": sum(times_testcases)/len(times_testcases),
             "runs": runs,
+            "total_nb_tokens_prompt": self.agent.nb_tokens_prompt,
+            "total_nb_tokens_completion": self.agent.nb_tokens_completion,
         })
 
     def _eval_correctness_functions(self, file):
