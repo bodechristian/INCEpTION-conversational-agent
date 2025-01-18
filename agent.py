@@ -12,14 +12,15 @@ from functioncalls import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 
+from ukp_client import UKP_Client
 from toolcalling_functioncalls import AgentfunctionsToolcalling
 import utils
 
 
 class Agent():
 
-    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview
-    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview, ukp: llama3.2
+    def __init__(self, model="llama3.2", client="ukp", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
         self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
         self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
 
@@ -45,7 +46,7 @@ class Agent():
         self.client_toolcalling = Groq(
             api_key=self.GROQ_API_KEY,
         )
-        self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"
+        self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"  # discontinued, potentially use llama-3.3-70b-versatile
 
     def initialize_loggers(self, debug):
         # creating logger
@@ -78,6 +79,8 @@ class Agent():
             self.client = Cerebras(
                 api_key=self.CEREBRAS_API_KEY,
             )
+        elif client == "ukp":
+            self.client = UKP_Client()
 
     def set_toolcalling_functions(self, is_toolcalling):
         self.toolcalling_functions = is_toolcalling
@@ -89,34 +92,41 @@ class Agent():
             self.parser = Dollarparser(self.functionclass)
 
     def call_llm(self, system_prompt, user_prompt):
-        chat_completion = self.client.chat.completions.create(
-            messages=[
-                # system prompt
-                {
-                    "role": "system",
-                    "content": system_prompt,
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    # system prompt
+                    {
+                        "role": "system",
+                        "content": system_prompt,
 
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                }
-            ],
-            model=self.model,
-            temperature=0.0
-        )
-        # count api calls and tokens
-        self.nb_api_calls += 1
-        self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
-        self.nb_tokens_completion += chat_completion.usage.completion_tokens
+                    },
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    }
+                ],
+                model=self.model,
+                temperature=0.0,
+                parallel_tool_calls=False,
+            )
+            # count api calls and tokens
+            self.nb_api_calls += 1
+            self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+            self.nb_tokens_completion += chat_completion.usage.completion_tokens
 
-        llm_response = chat_completion.choices[0].message.content
-        return llm_response
+            llm_response = chat_completion.choices[0].message.content
+            return llm_response
+        except Exception as error:
+            self.logger.debug(error)
+            return 'Unable to parse LLM response'
 
     def call_llm_planner(self, user_query, execute_functions=True):
         system_prompt_planner = get_system_prompt_planner(self.functionclass.valid_functions.values())
         llm_response = self.call_llm(system_prompt_planner, user_query)
         # printing response
+        if llm_response == 'Unable to parse LLM response':
+            return llm_response
         self.logger.debug("System prompt:\n%s", system_prompt_planner)
         self.logger.info(LOGGER_PLANNER_INPUT, user_query, llm_response)
         if execute_functions:
@@ -124,9 +134,6 @@ class Agent():
             parsed_dollar_syntax = self.parser.analyze_and_execute_dollar_syntax(llm_response)
             self.logger.info(LOGGER_PLANNER_RESPONSE, parsed_dollar_syntax)
         return llm_response
-
-    def get_state(self):
-        return self.state
 
     def call_llm_toolcalling(self, user_query):
         self.state['user_query'] = user_query
@@ -238,6 +245,9 @@ class Agent():
             func_call(user_prompt)
             time.sleep(1)
             self.state = {}
+
+    def get_state(self):
+        return self.state
 
 
 if __name__ == "__main__":
