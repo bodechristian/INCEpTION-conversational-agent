@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import time
+import utils
 
 from prompts import *
 from argparse import ArgumentParser
@@ -11,25 +12,24 @@ from parser import Dollarparser
 from functioncalls import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
+from openai import OpenAI
 
 from ukp_client import UKP_Client
 from toolcalling_functioncalls import AgentfunctionsToolcalling
-import utils
 
 
 class Agent():
-
-    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-8192-tool-use-preview, ukp: llama3.2
-    def __init__(self, model="llama3.2", client="ukp", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
-        self.GROQ_API_KEY = os.environ['GROQ_API_KEY']
-        self.CEREBRAS_API_KEY = os.environ['CEREBRAS_API_KEY']
-
+    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini
+    def __init__(self, model="gpt-4o", client="openai", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+        # save options
         self.state = {}
         self.toolcalling_functions = toolcalling_functions
         self.testing = testing
         self.debug = debug
         self.no_logs = no_logs
+        self.model = model
 
+        # initialize important numbers to keep track of
         self.nb_api_calls = 0
         self.nb_tokens_prompt = 0
         self.nb_tokens_completion = 0
@@ -37,14 +37,13 @@ class Agent():
         self.initialize_loggers(debug)
 
         # initialize api and software env
-        self.model = model
         self.softwareenv = MockAnnotationTool()
 
         self.set_toolcalling_functions(toolcalling_functions)
         self.set_client(client)
         # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
         self.client_toolcalling = Groq(
-            api_key=self.GROQ_API_KEY,
+            api_key=os.environ['GROQ_API_KEY'],
         )
         self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"  # discontinued, potentially use llama-3.3-70b-versatile
 
@@ -52,32 +51,39 @@ class Agent():
         # creating logger
         stdout = logging.StreamHandler(stream=sys.stdout)
         stdout.setLevel(logging.DEBUG)
+
         self.logger = logging.getLogger("output")
+        l = logging.getLogger("functions")
+
+        # set levels
         if debug:
             self.logger.setLevel(logging.DEBUG)
-        else:
-            self.logger.setLevel(logging.INFO)
-        self.logger.handlers.clear()
-        self.logger.addHandler(stdout)
-        l = logging.getLogger("functions")
-        if debug:
             l.setLevel(logging.DEBUG)
-        else:
-            l.setLevel(logging.INFO)
-        l.handlers.clear()
-        l.addHandler(stdout)
-        if self.no_logs:
+        elif self.no_logs:
             self.logger.setLevel(logging.ERROR)
             l.setLevel(logging.ERROR)
+        else:
+            self.logger.setLevel(logging.INFO)
+            l.setLevel(logging.INFO)
+
+        # clear handlers first to avoid double logging when creating agents multiple times
+        self.logger.handlers.clear()
+        l.handlers.clear()
+        self.logger.addHandler(stdout)
+        l.addHandler(stdout)
 
     def set_client(self, client):
         if client == "groq":
             self.client = Groq(
-                api_key=self.GROQ_API_KEY,
+                api_key=os.environ['GROQ_API_KEY'],
             )
         elif client == "cerebras":
             self.client = Cerebras(
-                api_key=self.CEREBRAS_API_KEY,
+                api_key=os.environ['CEREBRAS_API_KEY'],
+            )
+        elif client == "openai":
+            self.client = OpenAI(
+                api_key=os.environ['OPENAI_API_KEY']
             )
         elif client == "ukp":
             self.client = UKP_Client()
@@ -108,7 +114,6 @@ class Agent():
                 ],
                 model=self.model,
                 temperature=0.0,
-                parallel_tool_calls=False,
             )
             # count api calls and tokens
             self.nb_api_calls += 1
