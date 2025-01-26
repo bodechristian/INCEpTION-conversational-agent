@@ -15,10 +15,10 @@ from groq import Groq
 from openai import OpenAI
 
 from ukp_client import UKP_Client
-from toolcalling_functioncalls import AgentfunctionsToolcalling
+from functioncalls_toolcalling import AgentfunctionsToolcalling
 
 CLIENTMODELS = {
-    "cerebras": "llama3.1-70b",
+    "cerebras": "llama3.3-70b",
     "groq": "llama3-70b-8192",
     "ukp": "llama3.2",
     "openai": "gpt-4o",
@@ -27,8 +27,8 @@ CLIENTMODELS = {
 
 
 class Agent():
-    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini, ollama: mistral-latest
-    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+    # cerebras: llama3.3-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini, ollama: mistral-latest
+    def __init__(self, model="llama3.3-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
         # save options
         self.state = {}
         self.toolcalling_functions = toolcalling_functions
@@ -36,6 +36,7 @@ class Agent():
         self.debug = debug
         self.no_logs = no_logs
         self.model = model
+        self.max_iterations = 10
 
         # initialize important numbers to keep track of
         self.nb_api_calls = 0
@@ -190,7 +191,8 @@ class Agent():
             return messages
         else:
             # tools are called, keep calling them until llm says stop
-            while chat_completion.choices[0].finish_reason != "stop":
+            nb_iters = 1
+            while chat_completion.choices[0].finish_reason != "stop" and nb_iters < self.max_iterations:
                 # if tool calls exist
                 if return_result.tool_calls:
                     # execute each of them (should only be one usually)
@@ -225,12 +227,14 @@ class Agent():
                     self.nb_tokens_completion += chat_completion.usage.completion_tokens
 
                     return_result = chat_completion.choices[0].message
+                    nb_iters += 1
                 except Exception as error:
                     self.logger.debug(error)
                     return 'Unable to parse LLM response'
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
-            self.functionclass.respond()
+            final_response = self.functionclass.respond()
+            messages.append({"role": "assistant",  "content": final_response})
             # self.logger.info(return_result.content)
             self.logger.debug(f"Functions that were called: {utils.get_toolcalls_from_messages(messages)}")
             return messages

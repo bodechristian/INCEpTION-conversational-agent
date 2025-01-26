@@ -21,7 +21,10 @@ def clean_wikipedia_articles():
 
 
 def get_toolcalls_from_messages(messages):
-    return [m['name'] for m in messages if isinstance(m, dict) and m['role'] == 'tool']
+    toolcalls = [m['name'] for m in messages if isinstance(m, dict) and m['role'] == 'tool']
+    if messages[-1]['role'] == 'assistant':
+        toolcalls.append('respond')
+    return toolcalls
 
 
 def remove_file_ending(_str):
