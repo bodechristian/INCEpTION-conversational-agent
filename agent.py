@@ -17,10 +17,18 @@ from openai import OpenAI
 from ukp_client import UKP_Client
 from toolcalling_functioncalls import AgentfunctionsToolcalling
 
+CLIENTMODELS = {
+    "cerebras": "llama3.1-70b",
+    "groq": "llama3-70b-8192",
+    "ukp": "llama3.2",
+    "openai": "gpt-4o",
+    "ollama": "mistral:latest"
+}
+
 
 class Agent():
-    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini
-    def __init__(self, model="gpt-4o", client="openai", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+    # cerebras: llama3.1-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini, ollama: mistral-latest
+    def __init__(self, model="llama3.1-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
         # save options
         self.state = {}
         self.toolcalling_functions = toolcalling_functions
@@ -66,9 +74,6 @@ class Agent():
             self.logger.setLevel(logging.INFO)
             l.setLevel(logging.INFO)
 
-        # clear handlers first to avoid double logging when creating agents multiple times
-        self.logger.handlers.clear()
-        l.handlers.clear()
         self.logger.addHandler(stdout)
         l.addHandler(stdout)
 
@@ -84,6 +89,11 @@ class Agent():
         elif client == "openai":
             self.client = OpenAI(
                 api_key=os.environ['OPENAI_API_KEY']
+            )
+        elif client == "ollama":
+            self.client = OpenAI(
+                base_url='http://localhost:11434/v1',
+                api_key='ollama'
             )
         elif client == "ukp":
             self.client = UKP_Client()
@@ -260,22 +270,31 @@ if __name__ == "__main__":
     parser.add_argument("--toolcalling", action='store_true')
     parser.add_argument("--debug", action='store_true')
     parser.add_argument("--compare", type=str)
+    parser.add_argument("--client", type=str)
     args = parser.parse_args()
+
+    if args.client in CLIENTMODELS:
+        model = CLIENTMODELS[args.client]
+        client = args.client
+    else:
+        # else set to default model
+        client = "cerebras"
+        model = "llama3.1-70b"
 
     if args.compare:
         # create conversational agent
-        agent = Agent(toolcalling_functions=True, debug=args.debug)
+        agent = Agent(toolcalling_functions=True, client=client, model=model, debug=args.debug)
         # call planner
         agent.direct(args.compare)
-        agent.logger(f"API calls: {agent.nb_api_calls}, total amount of tokens: {agent.nb_tokens}")
+        agent.logger.info(f"API calls: {agent.nb_api_calls},")  # total amount of tokens: {agent.nb_tokens}")
         agent.nb_api_calls = 0
-        agent.nb_tokens = 0
+        # agent.nb_tokens = 0
         # call tool funtions
         agent.set_toolcalling_functions(False)
         agent.direct(args.compare)
-        agent.logger(f"API calls: {agent.nb_api_calls}, total amount of tokens: {agent.nb_tokens}")
+        agent.logger.info(f"API calls: {agent.nb_api_calls},")  # total amount of tokens: {agent.nb_tokens}")
     else:
         # create conversational agent
-        agent = Agent(toolcalling_functions=args.toolcalling, debug=args.debug)
+        agent = Agent(toolcalling_functions=args.toolcalling, client=client, model=model, debug=args.debug)
         # run it
         agent.run()
