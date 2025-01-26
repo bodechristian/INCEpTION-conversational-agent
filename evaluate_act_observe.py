@@ -7,6 +7,7 @@ import yaml
 import json
 import time
 
+from agent import CLIENTMODELS
 from os import getcwd
 from os.path import join
 from agent import Agent
@@ -78,6 +79,8 @@ class EvaluateActObserve():
 
                 self.all_logged_data.append(self.logged_data_per_run)
         # calculate recall and precision via Recall = tp / (tp+fn) and Precision = tp / (tp+fp)
+        # f1scores are tuples (score, amount_of_acutal_occurences)
+        f1scores = []
         for intent, vals_dict in self.classifications.items():
             tp = vals_dict["tp"]
             tn = vals_dict["tn"]
@@ -87,7 +90,13 @@ class EvaluateActObserve():
             precision = 0 if (tp+fp) == 0 else tp / (tp+fp)
             self.classifications[intent]["recall"] = recall
             self.classifications[intent]["precision"] = precision
-        self.all_logged_data.append(self.classifications)
+            f1score = (2*tp) / (2*tp + fp + fn)
+            self.classifications[intent]["f1-score"] = f1score
+            f1scores.append((f1score, tp+fn))
+        f1score_macro = sum([score for score, _ in f1scores])/len(f1scores)
+        f1score_micro = sum([score*nb for score, nb in f1scores])/sum([nb for _, nb in f1scores])
+        self.all_logged_data.append(
+            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro})
         # Convert and write JSON object to file
         with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
@@ -110,7 +119,7 @@ class EvaluateActObserve():
                     self.classifications[el]['tn'] += 1
 
     def _eval_end_to_end(self, file):
-        self.logger.info("\nTesting end to end on%s", file)
+        self.logger.info("\nTesting end to end on %s", file)
         start_time = time.time()
         runs = []
         times_testcases = []
@@ -118,18 +127,18 @@ class EvaluateActObserve():
         nb_tokens_completion = 0
 
         for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
-            # extract columns from yaml
+            # take prompt
             prompt = testcase["prompt"]
 
-            # prompt planner
+            # ask agent
             start_time_testcase = time.time()
             detected_messages = self.agent.call_llm_toolcalling(user_query=prompt)
             time_testcase = time.time() - start_time_testcase
 
+            # check response
             if detected_messages != 'Unable to parse LLM response':
                 # extract only the functions from the act/observe response
                 detected = utils.get_toolcalls_from_messages(detected_messages)
-                detected.append('respond')
                 self.do_classifications(expected=set(testcase["expectations"]), detected=set(detected))
                 str_predicted_results = ", ".join(detected)
             else:
@@ -138,7 +147,7 @@ class EvaluateActObserve():
             # log
             results_dict = {
                 "prompt": prompt,
-                "expected": testcase["expectations"],
+                "expected": ", ".join(testcase["expectations"]),
                 "executed": str_predicted_results,
                 "duration": time_testcase,
                 "error": detected_messages == 'Unable to parse LLM response',
@@ -301,8 +310,7 @@ class EvaluateActObserve():
 
 
 if __name__ == "__main__":
-    models = [("groq", "llama3-70b-8192"), ("cerebras", "llama3.1-70b"), ("openai", "gpt-4o"), ("ukp", "llama3.2")]
-    # filenames = ["wikipedia_cheetah.yaml", "cleanedwikipedia_2016_pres_election.yaml"]
+    models = list(CLIENTMODELS.items())
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluateActObserve(models=models[3:4], filenames=filenames).evaluate()
+    EvaluateActObserve(models=[('ollama', CLIENTMODELS['ollama'])], filenames=filenames[1:2]).evaluate()
