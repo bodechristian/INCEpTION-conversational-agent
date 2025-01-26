@@ -225,7 +225,7 @@ class AgentfunctionsToolcalling():
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         # stringify_spans = [f"({cat}, ({s}, {e}))" for (cat, (s, e)) in found_spans]
-        return f"I classified relevant spans and saved them in memory under 'annotation_positions'"
+        return f"I classified relevant spans regarding {classification_query} and saved them in memory under 'annotation_positions'"
 
     def highlight(self) -> void_INCEpTION_UI:
         """Highlights the given spans from the text"""

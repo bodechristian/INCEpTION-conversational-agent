@@ -15,7 +15,7 @@ from agent import Agent
 class EvaluatePlanner():
     def __init__(self, models=[], filenames=[]) -> None:
 
-        # the models to evaluate. List of pairs of ('client', 'model')
+        # the models to evaluate. List of pairs of ('client', 'modelname')
         self.models = models
         # read and store yaml test files
         self.filenames = filenames
@@ -28,6 +28,7 @@ class EvaluatePlanner():
                 except yaml.YAMLError as exc:
                     print(exc)
 
+        self.classifications = {}  # storing True Postive, TN, FP, FN for each intent
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -41,6 +42,15 @@ class EvaluatePlanner():
         self.logger.addHandler(stdout)
 
     def setup_agent(self, client, model):
+        # clear handlers first to avoid double logging when creating agents multiple times
+        l = logging.getLogger('functions')
+        l.handlers.clear()
+        l = logging.getLogger('output')
+        l.handlers.clear()
+        fh = logging.FileHandler(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.log"))
+        fh.setLevel(logging.DEBUG)
+        l.addHandler(fh)
+
         self.agent = Agent(client=client, model=model)
 
     def evaluate(self):
@@ -65,9 +75,37 @@ class EvaluatePlanner():
                 # self._eval_layer_and_feature(file)
 
                 self.all_logged_data.append(self.logged_data_per_run)
+        # calculate recall and precision via Recall = tp / (tp+fn) and Precision = tp / (tp+fp)
+        for intent, vals_dict in self.classifications.items():
+            tp = vals_dict["tp"]
+            tn = vals_dict["tn"]
+            fp = vals_dict["fp"]
+            fn = vals_dict["fn"]
+            recall = 0 if (tp+fn) == 0 else tp / (tp+fn)
+            precision = 0 if (tp+fp) == 0 else tp / (tp+fp)
+            self.classifications[intent]["recall"] = recall
+            self.classifications[intent]["precision"] = precision
+        self.all_logged_data.append(self.classifications)
         # Convert and write JSON object to file
         with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
+
+    def do_classifications(self, expected, detected):
+        # make sure it exists already, otherwise add it
+        for el in expected | detected:
+            if not el in self.classifications:
+                self.classifications[el] = {"tp": 0, "tn": 0, "fp": 0, "fn": 0}
+            # add em up
+            if el in expected:
+                if el in detected:
+                    self.classifications[el]['tp'] += 1
+                else:
+                    self.classifications[el]['fn'] += 1
+            else:
+                if el in detected:
+                    self.classifications[el]['fp'] += 1
+                else:
+                    self.classifications[el]['tn'] += 1
 
     def _eval_end_to_end(self, file):
         self.logger.info("\nTesting end to end on %s", file)
@@ -76,7 +114,7 @@ class EvaluatePlanner():
         times_testcases = []
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
-        for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
             # extract columns from yaml
             prompt = testcase["prompt"]
 
@@ -90,10 +128,13 @@ class EvaluatePlanner():
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
 
+            self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
             str_predicted_results = ", ".join(sorted(list(detected), key=str.lower))
 
+            # log
             results_dict = {
                 "prompt": prompt,
+                "expected": testcase["expectations"],
                 "executed": str_predicted_results,
                 "duration": time_testcase,
                 "error": result == 'Unable to parse LLM response',
@@ -259,8 +300,8 @@ class EvaluatePlanner():
 
 
 if __name__ == "__main__":
-    models = [("groq", "llama3-70b-8192"), ("cerebras", "llama3.1-70b")]
+    models = [("groq", "llama3-70b-8192"), ("cerebras", "llama3.1-70b"), ("openai", "gpt-4o"), ("ukp", "llama3.2")]
     # filenames = ["wikipedia_cheetah.yaml", "cleanedwikipedia_2016_pres_election.yaml"]
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluatePlanner(models=models[1:2], filenames=filenames).evaluate()
+    EvaluatePlanner(models=models[3:4], filenames=filenames).evaluate()
