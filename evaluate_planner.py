@@ -14,12 +14,14 @@ from agent import CLIENTMODELS, Agent
 
 
 class EvaluatePlanner():
-    def __init__(self, models=[], filenames=[]) -> None:
+    def __init__(self, client, model, filenames=[]) -> None:
+        # the models to evaluate.
+        self.client = client
+        self.model = model
 
-        # the models to evaluate. List of pairs of ('client', 'modelname')
-        self.models = models
         # read and store yaml test files
         self.filenames = filenames
+        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-planner-{self.client}"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -41,41 +43,43 @@ class EvaluatePlanner():
         stdout.setLevel(logging.DEBUG)
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(stdout)
+        fh = logging.FileHandler(join("test_logs", f"{self.outputfilename}.log"))
+        fh.setLevel(logging.DEBUG)
+        self.logger.addHandler(fh)
 
-    def setup_agent(self, client, model):
+    def setup_agent(self, client, model, testing=True):
         # clear handlers first to avoid double logging when creating agents multiple times
         l = logging.getLogger('functions')
         l.handlers.clear()
         l = logging.getLogger('output')
         l.handlers.clear()
-        fh = logging.FileHandler(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.log"))
+        fh = logging.FileHandler(join("test_logs", f"{self.outputfilename}.log"))
         fh.setLevel(logging.DEBUG)
         l.addHandler(fh)
 
-        self.agent = Agent(client=client, model=model)
+        self.agent = Agent(client=client, model=model, testing=testing, debug=True)
 
     def evaluate(self):
         for file in self.filenames:
-            for client, model in self.models:
-                self.setup_agent(client, model)
-                # switch open document to corresponding testfile
-                self.agent.softwareenv.set_current_document_by_name(utils.remove_file_ending(file))
+            self.setup_agent(self.client, self.model)
+            # switch open document to corresponding testfile
+            self.agent.softwareenv.set_current_document_by_name(utils.remove_file_ending(file))
 
-                # logging to file
-                self.logged_data_per_run = {
-                    "method": "Planner",
-                    "file": file,
-                    "client": client,
-                    "model": model,
-                    "tests": []
-                }
+            # logging to file
+            self.logged_data_per_run = {
+                "method": "Planner",
+                "file": file,
+                "client": self.client,
+                "model": self.model,
+                "tests": []
+            }
 
-                self._eval_end_to_end(file)
-                # self._eval_correctness_functions(file)
-                # self._eval_scope(file)
-                # self._eval_layer_and_feature(file)
+            self._eval_end_to_end(file)
+            # self._eval_correctness_functions(file)
+            # self._eval_scope(file)
+            # self._eval_layer_and_feature(file)
 
-                self.all_logged_data.append(self.logged_data_per_run)
+            self.all_logged_data.append(self.logged_data_per_run)
         # calculate recall and precision via Recall = tp / (tp+fn) and Precision = tp / (tp+fp)
         # f1scores are tuples (score, amount_of_acutal_occurences)
         f1scores = []
@@ -96,7 +100,7 @@ class EvaluatePlanner():
         self.all_logged_data.append(
             {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro})
         # Convert and write JSON object to file
-        with open(join("test_logs", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
+        with open(join("test_logs", f"{self.outputfilename}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
 
     def do_classifications(self, expected, detected):
@@ -123,7 +127,7 @@ class EvaluatePlanner():
         times_testcases = []
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:5]:
             # extract columns from yaml
             prompt = testcase["prompt"]
 
@@ -137,7 +141,8 @@ class EvaluatePlanner():
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
 
-            self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
+            if not isinstance(result, utils.ParsingException):
+                self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
             str_predicted_results = ", ".join([func for _, func, _ in funcs])
 
             # log
@@ -156,6 +161,7 @@ class EvaluatePlanner():
             times_testcases.append(time_testcase)
             runs.append(results_dict)
             # logging
+            self.logger.info(result)
             self.logger.debug(f"\n{results_dict}")
         self.logged_data_per_run["tests"].append({
             "test_name": "end-to-end test",
@@ -318,8 +324,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluatePlanner(models=[(client, CLIENTMODELS[client])], filenames=filenames).evaluate()
-    else:
-        # do a random/all clients
-        EvaluatePlanner(models=list(CLIENTMODELS.items())[3:4], filenames=filenames).evaluate()
-        # EvaluateActObserve(models=list(CLIENTMODELS.items()), filenames=filenames[1:2]).evaluate()
+        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()
