@@ -4,6 +4,7 @@ import logging
 
 from functioncalls import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
+import utils
 
 
 class Dollarparser():
@@ -59,7 +60,7 @@ class Dollarparser():
             # Maybe TODO: create custom exception Class
             logger = logging.getLogger("output")
             logger.debug(error)
-            return "Unable to parse LLM response"
+            return utils.ParsingException(message='executing dollar syntax')
 
     def analyze_and_execute_dollar_syntax(self, input_string: str) -> None:
         """Analyzes and executes functions from a specific syntax.

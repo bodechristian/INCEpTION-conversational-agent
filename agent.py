@@ -22,7 +22,7 @@ CLIENTMODELS = {
     "groq": "llama3-70b-8192",
     "ukp": "llama3.2",
     "openai": "gpt-4o",
-    "ollama": "mistral:latest"
+    "ollama": "llama3.2:latest"
 }
 
 
@@ -135,13 +135,13 @@ class Agent():
             return llm_response
         except Exception as error:
             self.logger.debug(error)
-            return 'Unable to parse LLM response'
+            return utils.ParsingException(message='calling LLM')
 
     def call_llm_planner(self, user_query, execute_functions=True):
         system_prompt_planner = get_system_prompt_planner(self.functionclass.valid_functions.values())
         llm_response = self.call_llm(system_prompt_planner, user_query)
         # printing response
-        if llm_response == 'Unable to parse LLM response':
+        if isinstance(llm_response, utils.ParsingException):
             return llm_response
         self.logger.debug("System prompt:\n%s", system_prompt_planner)
         self.logger.info(LOGGER_PLANNER_INPUT, user_query, llm_response)
@@ -183,8 +183,9 @@ class Agent():
             return_result = chat_completion.choices[0].message
         except Exception as error:
             self.logger.debug(error)
-            return 'Unable to parse LLM response'
+            return utils.ParsingException(message='calling LLM with toolcalling, initial call')
 
+        self.logger.debug(chat_completion)
         if chat_completion.choices[0].finish_reason == "stop":
             # no tools need to be called, just respond
             self.logger.info(TOOLCALLING_OUTPUT, return_result.content)
@@ -206,7 +207,7 @@ class Agent():
                             response = func(**arguments)
                         except Exception as error:
                             self.logger.debug(error)
-                            return 'Unable to parse LLM response'
+                            return utils.ParsingException(message='calling LLM with toolcalling,, executing tool call')
                         # append functioncall and the response to LLM messages
                         messages.append(return_result)
                         messages.append({'role': 'tool', 'content': response,
@@ -230,7 +231,7 @@ class Agent():
                     nb_iters += 1
                 except Exception as error:
                     self.logger.debug(error)
-                    return 'Unable to parse LLM response'
+                    return utils.ParsingException(message='calling LLM with toolcalling, awaiting next step')
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             final_response = self.functionclass.respond()

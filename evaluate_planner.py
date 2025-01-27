@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import logging.config
 import os
 import logging
@@ -145,7 +146,7 @@ class EvaluatePlanner():
                 "expected": ", ".join(testcase["expectations"]),
                 "executed": str_predicted_results,
                 "duration": time_testcase,
-                "error": result == 'Unable to parse LLM response',
+                "error": isinstance(result, utils.ParsingException),
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
@@ -308,7 +309,17 @@ class EvaluatePlanner():
 
 
 if __name__ == "__main__":
-    models = list(CLIENTMODELS.items())
+    parser = ArgumentParser()
+    parser.add_argument("--client", type=str)
+    args = parser.parse_args()
+
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluatePlanner(models=models[3:4], filenames=filenames).evaluate()
+    client = args.client
+    if not client is None and client in CLIENTMODELS:
+        # do a specific client
+        EvaluatePlanner(models=[(client, CLIENTMODELS[client])], filenames=filenames).evaluate()
+    else:
+        # do a random/all clients
+        EvaluatePlanner(models=list(CLIENTMODELS.items())[3:4], filenames=filenames).evaluate()
+        # EvaluateActObserve(models=list(CLIENTMODELS.items()), filenames=filenames[1:2]).evaluate()

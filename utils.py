@@ -29,3 +29,16 @@ def get_toolcalls_from_messages(messages):
 
 def remove_file_ending(_str):
     return ".".join(_str.split('.')[:-1])
+
+
+class ParsingException:
+    """Used to indicate parsing errors without throwing exceptions"""
+
+    def __init__(self, message):
+        self.message = message
+
+    def __repr__(self):
+        return "<ParsingException> " + self.message
+
+    def __str__(self):
+        return "<ParsingException> " + self.message

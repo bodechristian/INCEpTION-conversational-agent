@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import logging.config
 import unittest
 import os
@@ -42,7 +43,7 @@ class EvaluateActObserve():
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(stdout)
 
-    def setup_agent(self, client, model, testing=False):
+    def setup_agent(self, client, model, testing=True):
         # create new agent
         # testing skips the long iterative classifying-spans step. can be used to just retrieve which functions are called
 
@@ -55,7 +56,7 @@ class EvaluateActObserve():
         fh.setLevel(logging.DEBUG)
         l.addHandler(fh)
 
-        self.agent = Agent(client=client, model=model, toolcalling_functions=True, testing=testing)
+        self.agent = Agent(client=client, model=model, toolcalling_functions=True, testing=testing, debug=True)
 
     def evaluate(self):
         for file in self.filenames:
@@ -136,13 +137,13 @@ class EvaluateActObserve():
             time_testcase = time.time() - start_time_testcase
 
             # check response
-            if detected_messages != 'Unable to parse LLM response':
+            if isinstance(detected_messages, utils.ParsingException):
+                str_predicted_results = detected_messages
+            else:
                 # extract only the functions from the act/observe response
                 detected = utils.get_toolcalls_from_messages(detected_messages)
                 self.do_classifications(expected=set(testcase["expectations"]), detected=set(detected))
                 str_predicted_results = ", ".join(detected)
-            else:
-                str_predicted_results = 'parsing error'
 
             # log
             results_dict = {
@@ -150,7 +151,7 @@ class EvaluateActObserve():
                 "expected": ", ".join(testcase["expectations"]),
                 "executed": str_predicted_results,
                 "duration": time_testcase,
-                "error": detected_messages == 'Unable to parse LLM response',
+                "error": isinstance(detected_messages, utils.ParsingException),
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
@@ -310,7 +311,17 @@ class EvaluateActObserve():
 
 
 if __name__ == "__main__":
-    models = list(CLIENTMODELS.items())
+    parser = ArgumentParser()
+    parser.add_argument("--client", type=str)
+    args = parser.parse_args()
+
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
 
-    EvaluateActObserve(models=[('ollama', CLIENTMODELS['ollama'])], filenames=filenames[1:2]).evaluate()
+    client = args.client
+    if not client is None and client in CLIENTMODELS:
+        # do a specific client
+        EvaluateActObserve(models=[(client, CLIENTMODELS[client])], filenames=filenames[1:2]).evaluate()
+    else:
+        # do a random/all clients
+        EvaluateActObserve(models=[('ukp', CLIENTMODELS['ukp'])], filenames=filenames[1:2]).evaluate()
+        # EvaluateActObserve(models=list(CLIENTMODELS.items()), filenames=filenames[1:2]).evaluate()
