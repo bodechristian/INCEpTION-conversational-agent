@@ -4,6 +4,7 @@ import json
 import os
 import time
 import utils
+import re
 
 from prompts import *
 from argparse import ArgumentParser
@@ -20,9 +21,10 @@ from functioncalls_toolcalling import AgentfunctionsToolcalling
 CLIENTMODELS = {
     "cerebras": "llama3.3-70b",
     "groq": "llama3-70b-8192",
-    "ukp": "llama3.2",
+    "ukp": "llama3.2",  # deepseek-r1:70b, llama3.2, phi4:latest
     "openai": "gpt-4o",
-    "ollama": "llama3.2:latest"
+    "ollama": "llama3.2:latest",
+    "deepseek": "deepseek-chat",
 }
 
 
@@ -97,7 +99,15 @@ class Agent():
                 api_key='ollama'
             )
         elif client == "ukp":
-            self.client = UKP_Client()
+            self.client = OpenAI(
+                base_url='http://10.167.31.201:11434/v1',
+                api_key='ollama'
+            )
+        elif client == "deepseek":
+            self.client = OpenAI(
+                base_url="https://api.deepseek.com",
+                api_key=os.environ['OPENAI_API_KEY']
+            )
 
     def set_toolcalling_functions(self, is_toolcalling):
         self.toolcalling_functions = is_toolcalling
@@ -105,7 +115,7 @@ class Agent():
             self.functionclass = AgentfunctionsToolcalling(
                 self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
         else:
-            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm)
+            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm, testing=self.testing)
             self.parser = Dollarparser(self.functionclass)
 
     def call_llm(self, system_prompt, user_prompt):
@@ -132,6 +142,8 @@ class Agent():
             self.nb_tokens_completion += chat_completion.usage.completion_tokens
 
             llm_response = chat_completion.choices[0].message.content
+            if self.model.startswith('deepseek'):
+                llm_response = utils.parse_deepseek_response(llm_response)
             return llm_response
         except Exception as error:
             self.logger.debug(error)
@@ -140,9 +152,10 @@ class Agent():
     def call_llm_planner(self, user_query, execute_functions=True):
         system_prompt_planner = get_system_prompt_planner(self.functionclass.valid_functions.values())
         llm_response = self.call_llm(system_prompt_planner, user_query)
+
         # printing response
         if isinstance(llm_response, utils.ParsingException):
-            return llm_response
+            return llm_response.message
         self.logger.debug("System prompt:\n%s", system_prompt_planner)
         self.logger.info(LOGGER_PLANNER_INPUT, user_query, llm_response)
         if execute_functions:
@@ -207,7 +220,7 @@ class Agent():
                             response = func(**arguments)
                         except Exception as error:
                             self.logger.debug(error)
-                            return utils.ParsingException(message='calling LLM with toolcalling,, executing tool call')
+                            return utils.ParsingException(message='calling LLM with toolcalling, executing tool call')
                         # append functioncall and the response to LLM messages
                         messages.append(return_result)
                         messages.append({'role': 'tool', 'content': response,
