@@ -15,7 +15,6 @@ from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 from openai import OpenAI
 
-from ukp_client import UKP_Client
 from functioncalls_toolcalling import AgentfunctionsToolcalling
 
 CLIENTMODELS = {

@@ -26,9 +26,10 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv: MockAnnotationTool, callback_llm) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, testing=False) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
+        self.testing = testing
 
         self.valid_functions = {
             "search_context": self.search_context,
@@ -133,10 +134,13 @@ Returns the annotation positions."""
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
 
+        if self.testing:
+            return []
+
         # get text from doc/cas
         if scope == "current document":
             documenttext = self.softwareenv.get_current_documenttext()
-        elif scope == "all documents":
+        else:  # scope == "all documents":
             documenttext = self.softwareenv.get_current_documenttext()
         # chunk texts
         # long texts may go out of context window and make llm ignore the prompt 'only respond with embedded text'

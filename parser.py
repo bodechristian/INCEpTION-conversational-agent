@@ -60,7 +60,7 @@ class Dollarparser():
             # Maybe TODO: create custom exception Class
             logger = logging.getLogger("output")
             logger.debug(error)
-            return utils.ParsingException(message='executing dollar syntax')
+            return utils.ParsingException(message=f'executing dollar syntax | {error}')
 
     def analyze_and_execute_dollar_syntax(self, input_string: str) -> None:
         """Analyzes and executes functions from a specific syntax.
