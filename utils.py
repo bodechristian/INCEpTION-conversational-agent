@@ -31,6 +31,13 @@ def remove_file_ending(_str):
     return ".".join(_str.split('.')[:-1])
 
 
+def parse_deepseek_response(_str):
+    _str == (re.split(r'think>', _str)[1]).strip()
+    if r'\`\`\`' in _str:
+        _str == (re.split(r'\`\`\`', _str)[1]).strip()
+    return _str
+
+
 class ParsingException:
     """Used to indicate parsing errors without throwing exceptions"""
 
