@@ -21,7 +21,7 @@ class EvaluatePlanner():
 
         # read and store yaml test files
         self.filenames = filenames
-        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-planner-{self.client}"
+        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-planner-{self.client}-{self.model}"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -31,7 +31,10 @@ class EvaluatePlanner():
                 except yaml.YAMLError as exc:
                     print(exc)
 
+        # initialize global values to keep track of
         self.classifications = {}  # storing True Postive, TN, FP, FN for each intent
+        self.nb_prompts = 0
+        self.nb_errors = 0
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -97,8 +100,11 @@ class EvaluatePlanner():
             f1scores.append((f1score, tp+fn))
         f1score_macro = sum([score for score, _ in f1scores])/len(f1scores)
         f1score_micro = sum([score*nb for score, nb in f1scores])/sum([nb for _, nb in f1scores])
+        error_rate = 0 if self.nb_errors == 0 else self.nb_errors / self.nb_prompts
         self.all_logged_data.append(
-            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro})
+            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro, "errorrate": error_rate,
+             "total_tokens_prompt": self.agent.nb_tokens_prompt, "total_tokens_completion": self.agent.nb_tokens_completion,
+                "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion})
         # Convert and write JSON object to file
         with open(join("test_logs", f"{self.outputfilename}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
@@ -127,7 +133,7 @@ class EvaluatePlanner():
         times_testcases = []
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:5]:
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
             # extract columns from yaml
             prompt = testcase["prompt"]
 
@@ -140,8 +146,9 @@ class EvaluatePlanner():
             detected = set([func for _, func, _ in funcs])
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
+            _is_error = isinstance(result, utils.ParsingException)
 
-            if not isinstance(result, utils.ParsingException):
+            if not _is_error:
                 self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
             str_predicted_results = ", ".join([func for _, func, _ in funcs])
 
@@ -151,12 +158,15 @@ class EvaluatePlanner():
                 "expected": ", ".join(testcase["expectations"]),
                 "executed": str_predicted_results,
                 "duration": time_testcase,
-                "error": isinstance(result, utils.ParsingException),
+                "error": _is_error,
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
             nb_tokens_prompt = self.agent.nb_tokens_prompt
             nb_tokens_completion = self.agent.nb_tokens_completion
+            self.nb_prompts += 1
+            if _is_error:
+                self.nb_errors += 1
 
             times_testcases.append(time_testcase)
             runs.append(results_dict)

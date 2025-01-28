@@ -23,7 +23,7 @@ class EvaluateActObserve():
 
         # read and store yaml test files
         self.filenames = filenames
-        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-oaa-{client}"
+        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-oaa-{client}-{self.model}"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -33,7 +33,10 @@ class EvaluateActObserve():
                 except yaml.YAMLError as exc:
                     print(exc)
 
+        # initialize global values to keep track of
         self.classifications = {}  # storing True Postive, TN, FP, FN for each intent
+        self.nb_prompts = 0
+        self.nb_errors = 0
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -102,8 +105,11 @@ class EvaluateActObserve():
             f1scores.append((f1score, tp+fn))
         f1score_macro = sum([score for score, _ in f1scores])/len(f1scores)
         f1score_micro = sum([score*nb for score, nb in f1scores])/sum([nb for _, nb in f1scores])
+        error_rate = 0 if self.nb_errors == 0 else self.nb_errors / self.nb_prompts
         self.all_logged_data.append(
-            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro})
+            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro, "errorrate": error_rate,
+             "total_tokens_prompt": self.agent.nb_tokens_prompt, "total_tokens_completion": self.agent.nb_tokens_completion,
+             "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion})
         # Convert and write JSON object to file
         with open(join("test_logs", f"{self.outputfilename}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
@@ -133,7 +139,7 @@ class EvaluateActObserve():
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
 
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:5]:
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
             # take prompt
             prompt = testcase["prompt"]
 
@@ -143,7 +149,8 @@ class EvaluateActObserve():
             time_testcase = time.time() - start_time_testcase
 
             # check response
-            if isinstance(detected_messages, utils.ParsingException):
+            _is_error = isinstance(detected_messages, utils.ParsingException)
+            if _is_error:
                 str_predicted_results = detected_messages.message
             else:
                 # extract only the functions from the act/observe response
@@ -163,6 +170,10 @@ class EvaluateActObserve():
             }
             nb_tokens_prompt = self.agent.nb_tokens_prompt
             nb_tokens_completion = self.agent.nb_tokens_completion
+            self.nb_prompts += 1
+            if _is_error:
+                self.nb_errors += 1
+
             times_testcases.append(time_testcase)
             runs.append(results_dict)
             # logging
@@ -326,4 +337,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluateActObserve(client=client, model=CLIENTMODELS[client], filenames=filenames[1:2]).evaluate()
+        EvaluateActObserve(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()
