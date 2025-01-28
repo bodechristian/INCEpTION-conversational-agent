@@ -20,7 +20,7 @@ from functioncalls_toolcalling import AgentfunctionsToolcalling
 CLIENTMODELS = {
     "cerebras": "llama3.3-70b",
     "groq": "llama3-70b-8192",
-    "ukp": "llama3.2",  # deepseek-r1:70b, llama3.2, phi4:latest
+    "ukp": "qwen2.5:32b",  # deepseek-r1:70b, llama3.2, phi4:latest
     "openai": "gpt-4o",
     "ollama": "llama3.2:latest",
     "deepseek": "deepseek-chat",
@@ -146,7 +146,7 @@ class Agent():
             return llm_response
         except Exception as error:
             self.logger.debug(error)
-            return utils.ParsingException(message='calling LLM')
+            return utils.ParsingException(message=f'calling LLM| {error}')
 
     def call_llm_planner(self, user_query, execute_functions=True):
         system_prompt_planner = get_system_prompt_planner(self.functionclass.valid_functions.values())
@@ -195,7 +195,7 @@ class Agent():
             return_result = chat_completion.choices[0].message
         except Exception as error:
             self.logger.debug(error)
-            return utils.ParsingException(message='calling LLM with toolcalling, initial call')
+            return utils.ParsingException(message=f'calling LLM with toolcalling, initial call| {error}')
 
         self.logger.debug(chat_completion)
         if chat_completion.choices[0].finish_reason == "stop":
@@ -219,7 +219,7 @@ class Agent():
                             response = func(**arguments)
                         except Exception as error:
                             self.logger.debug(error)
-                            return utils.ParsingException(message='calling LLM with toolcalling, executing tool call')
+                            return utils.ParsingException(message=f'calling LLM with toolcalling, executing tool call| {error}')
                         # append functioncall and the response to LLM messages
                         messages.append(return_result)
                         messages.append({'role': 'tool', 'content': response,
@@ -243,7 +243,7 @@ class Agent():
                     nb_iters += 1
                 except Exception as error:
                     self.logger.debug(error)
-                    return utils.ParsingException(message='calling LLM with toolcalling, awaiting next step')
+                    return utils.ParsingException(message=f'calling LLM with toolcalling, awaiting next step| {error}')
             # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             final_response = self.functionclass.respond()
