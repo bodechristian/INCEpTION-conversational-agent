@@ -39,6 +39,7 @@ class EvaluatePlanner():
         self.nb_incorrect_layerandfeature = 0
         self.nb_correct_scope = 0
         self.nb_incorrect_scope = 0
+        self.completely_corrects = 0
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -123,6 +124,7 @@ class EvaluatePlanner():
                 "errorrate": error_rate,
                 "correct scope rate": correct_scope_rate,
                 "correct layer and feature rate": correct_layerandfeature_rate,
+                "completely corrects": self.completely_corrects / self.nb_prompts,
                 "total_tokens_prompt": self.agent.nb_tokens_prompt,
                 "total_tokens_completion": self.agent.nb_tokens_completion,
                 "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion,
@@ -165,7 +167,8 @@ class EvaluatePlanner():
 
             # extract only the functions from the planner response
             funcs = self.agent.parser.analyze_functions(llm_response)
-            detected = set([func for _, func, _ in funcs])
+            detected_funcs = [func for _, func, _ in funcs]
+            detected = set(detected_funcs)
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
 
@@ -197,7 +200,13 @@ class EvaluatePlanner():
 
             if not _is_error:
                 self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
-            str_predicted_results = ", ".join([func for _, func, _ in funcs])
+            str_predicted_results = ", ".join(detected_funcs)
+
+            # correct settings + correct intents
+            completely_correct = (correct_scope == "" or correct_scope == True) and (
+                correct_layerandfeature == "" or correct_layerandfeature == True) and (
+                detected_funcs.sort() == testcase["expectations"].sort())
+            self.completely_corrects += completely_correct
 
             # log
             results_dict = {
@@ -208,6 +217,7 @@ class EvaluatePlanner():
                 "error": _is_error,
                 "correct_scope": correct_scope,
                 "correct_layerandfeature": correct_layerandfeature,
+                "completely correct": completely_correct,
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
