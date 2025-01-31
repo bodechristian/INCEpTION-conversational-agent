@@ -133,7 +133,7 @@ class Agent():
                     self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
         else:
             # mode == 'planner'
-            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm, testing=self.testing)
+            self.functionclass = Agentfunctions(self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
             self.parser = Dollarparser(self.functionclass)
 
     def call_llm(self, system_prompt, user_prompt):

@@ -26,9 +26,10 @@ class void_INCEpTION_UI:
 
 
 class Agentfunctions():
-    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, testing=False) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_getstate, testing=False) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
+        self.callback_getstate = callback_getstate
         self.testing = testing
 
         self.valid_functions = {
@@ -260,6 +261,7 @@ Returns the annotation positions."""
         logger.debug(f"{user_query=}\n")
 
         return_result = self.callback_llm(SYSTEM_PROMPT_GETSCOPE, user_query)
+        self.callback_getstate()['scope'] = return_result
 
         return return_result
 
@@ -286,6 +288,8 @@ Returns the annotation positions."""
             layer = list(landfs.keys())[0]
             feature = landfs[layer][0]
 
+        self.callback_getstate()['layer'] = layer
+        self.callback_getstate()['feature'] = feature
         return layer, feature
 
     def respond(self, original_query: str, context: str) -> str:
