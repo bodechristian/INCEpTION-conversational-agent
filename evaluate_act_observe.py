@@ -16,14 +16,14 @@ import utils
 
 
 class EvaluateActObserve():
-    def __init__(self, client, model, filenames=[]) -> None:
+    def __init__(self, client: str, model: str, filenames=[]) -> None:
         # the models to evaluate. List of pairs of ('client', 'modelname')
         self.client = client
         self.model = model
 
         # read and store yaml test files
         self.filenames = filenames
-        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-oaa-{client}-{self.model}"
+        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-oaa-{client}-{self.model.split(":")[0]}"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -65,7 +65,8 @@ class EvaluateActObserve():
         fh.setLevel(logging.DEBUG)
         l.addHandler(fh)
 
-        self.agent = Agent(client=client, model=model, toolcalling_functions=True, testing=testing, debug=True)
+        self.agent = Agent(mode='sequential', client=client, model=model,
+                           toolcalling_functions=True, testing=testing, debug=True)
 
     def evaluate(self):
         for file in self.filenames:

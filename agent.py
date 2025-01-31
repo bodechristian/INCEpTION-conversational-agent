@@ -5,8 +5,10 @@ import os
 import time
 import utils
 import re
+import uuid
 
 from prompts import *
+from pydantic import BaseModel
 from argparse import ArgumentParser
 from cerebras.cloud.sdk import Cerebras
 from parser import Dollarparser
@@ -14,30 +16,39 @@ from functioncalls import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 from openai import OpenAI
-
 from functioncalls_toolcalling import AgentfunctionsToolcalling
 
 CLIENTMODELS = {
     "cerebras": "llama3.3-70b",
     "groq": "llama3-70b-8192",
-    "ukp": "qwen2.5:32b",  # deepseek-r1:70b, llama3.2, phi4:latest
+    "ukp": "llama3.2",  # deepseek-r1:70b, llama3.2, phi4:latest
     "openai": "gpt-4o",
     "ollama": "llama3.2:latest",
     "deepseek": "deepseek-chat",
 }
 
 
+class SequentialWithoutToolcalling(BaseModel):
+    """class for structued output, support only by openAI. Thus currently unused
+    self.client.beta.chat.completions.parse(response_format=SequentialWithoutToolcalling)"""
+    functionname: str
+    parameters: dict[str, str]
+    stop: bool
+    content: str
+
+
 class Agent():
     # cerebras: llama3.3-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini, ollama: mistral-latest
-    def __init__(self, model="llama3.3-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+    def __init__(self, mode="planner", model="llama3.3-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
         # save options
+        self.mode = mode
         self.state = {}
         self.toolcalling_functions = toolcalling_functions
         self.testing = testing
         self.debug = debug
         self.no_logs = no_logs
         self.model = model
-        self.max_iterations = 10
+        self.max_iterations = 10  # for sequential reasoning
 
         # initialize important numbers to keep track of
         self.nb_api_calls = 0
@@ -49,7 +60,7 @@ class Agent():
         # initialize api and software env
         self.softwareenv = MockAnnotationTool()
 
-        self.set_toolcalling_functions(toolcalling_functions)
+        self.set_toolcalling_functions(mode=mode, toolcalling=toolcalling_functions)
         self.set_client(client)
         # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
         self.client_toolcalling = Groq(
@@ -108,12 +119,20 @@ class Agent():
                 api_key=os.environ['OPENAI_API_KEY']
             )
 
-    def set_toolcalling_functions(self, is_toolcalling):
-        self.toolcalling_functions = is_toolcalling
-        if is_toolcalling:
-            self.functionclass = AgentfunctionsToolcalling(
-                self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
+    def set_toolcalling_functions(self, mode, toolcalling):
+        self.mode = mode
+        self.toolcalling_functions = toolcalling
+        if self.mode == 'sequential':
+            if self.toolcalling_functions:
+                # sequential with tools=
+                self.functionclass = AgentfunctionsToolcalling(
+                    self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
+            else:
+                # sequential without tools=
+                self.functionclass = AgentfunctionsToolcalling(
+                    self.softwareenv, self.call_llm, self.get_state, testing=self.testing)
         else:
+            # mode == 'planner'
             self.functionclass = Agentfunctions(self.softwareenv, self.call_llm, testing=self.testing)
             self.parser = Dollarparser(self.functionclass)
 
@@ -245,6 +264,108 @@ class Agent():
                     self.logger.debug(error)
                     return utils.ParsingException(message=f'calling LLM with toolcalling, awaiting next step| {error}')
             # this response considers what was done and the state
+            # (the normal response would do so to, because it sees the messages)
+            # (so maybe add here if finish_reason==stop: respond with content, and also maybe change get_toolcalls_from_messages())
+            # (this can stay if it does >maxiterations iterations)
+            # therefore it should be better than just the normal llm content response
+            final_response = self.functionclass.respond()
+            messages.append({"role": "assistant",  "content": final_response})
+            # self.logger.info(return_result.content)
+            self.logger.debug(f"Functions that were called: {utils.get_toolcalls_from_messages(messages)}")
+            return messages
+
+    def parse_json_sequential_no_tools(self, _str):
+        """turns string to json. Json should look like:
+        {{
+            function_call: "xxx",
+            parameters: {{"xxx": "yyy", "aaa":"bbb"}},
+            stop: true/false,
+            content: ""
+        }}"""
+        s = json.loads(_str)
+        if "stop" not in s:
+            s['stop'] = False
+        s['tool_call_id'] = str(uuid.uuid4())
+        return s
+
+    def call_llm_sequential_no_tools(self, user_query):
+        self.state['user_query'] = user_query
+        self.logger.info(TOOLCALLING_INPUT, user_query)
+        messages = [
+            # system prompt
+            {
+                "role": "system",
+                "content": system_prompt_sequential_no_tools(self.functionclass.valid_functions.values()),
+
+            },
+            {
+                "role": "user",
+                "content": user_query,
+            }
+        ]
+        [self.logger.debug(m) for m in messages]
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model=self.model,
+                temperature=0.0,
+            )
+            # count api calls and tokens
+            self.nb_api_calls += 1
+            self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+            self.nb_tokens_completion += chat_completion.usage.completion_tokens
+
+            return_result = chat_completion.choices[0].message
+            print("return result:")
+            print(return_result.content)
+            return_json = self.parse_json_sequential_no_tools(return_result.content)
+        except Exception as error:
+            self.logger.debug(error)
+            return utils.ParsingException(message=f'calling sequential LLM without toolcalling, initial call| {error}')
+
+        self.logger.debug(chat_completion)
+        if return_json['stop']:
+            # no tools need to be called, just respond
+            self.logger.info(TOOLCALLING_OUTPUT, return_json['content'])
+            return messages
+        else:
+            # tools are called, keep calling them until llm says stop
+            nb_iters = 1
+            while not return_json['stop'] and nb_iters < self.max_iterations:
+                self.logger.debug(f"CALLED: {return_json['function_call']}\n")
+                try:
+                    # extract function and arguments
+                    func = self.functionclass.valid_functions[return_json['function_call']]
+                    # execute function
+                    response = func(**return_json['parameters'])
+                except Exception as error:
+                    self.logger.debug(error)
+                    return utils.ParsingException(message=f'calling sequential LLM without toolcalling, executing tool call| {error}')
+                # append functioncall and the response to LLM messages
+                messages.append({'role': 'tool', 'content': response,
+                                'name': return_json['function_call'], 'tool_call_id': return_json['tool_call_id']})
+                [self.logger.debug(m) for m in messages]
+                # call LLM again with new appended messages
+                try:
+                    chat_completion = self.client.chat.completions.create(
+                        messages=messages,
+                        model=self.model,
+                        temperature=0.0,
+                    )
+                    # count api calls and tokens
+                    self.nb_api_calls += 1
+                    self.nb_tokens_prompt += chat_completion.usage.prompt_tokens
+                    self.nb_tokens_completion += chat_completion.usage.completion_tokens
+
+                    return_result = chat_completion.choices[0].message
+                    print("return result:")
+                    print(return_result.content)
+                    return_json = self.parse_json_sequential_no_tools(return_result.content)
+                    nb_iters += 1
+                except Exception as error:
+                    self.logger.debug(error)
+                    return utils.ParsingException(message=f'calling sequential LLM without toolcalling, awaiting next step | {error}')
+            # this response considers what was done and the state
             # therefore it should be better than just the normal llm content response
             final_response = self.functionclass.respond()
             messages.append({"role": "assistant",  "content": final_response})
@@ -262,10 +383,13 @@ class Agent():
             self.call_llm_planner(prompt)
 
     def run(self):
-        # differentiate between toolcalling method and planner method
-        if self.toolcalling_functions:
-            # call the toolcalling method
-            func_call = self.call_llm_toolcalling
+        # differentiate between sequential method and planner method
+        if self.mode == 'sequential':
+            if self.toolcalling_functions:
+                # call the toolcalling method
+                func_call = self.call_llm_toolcalling
+            else:
+                func_call = self.call_llm_sequential_no_tools
         else:
             # call the llm planner method
             func_call = self.call_llm_planner
@@ -285,6 +409,7 @@ class Agent():
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--toolcalling", action='store_true')
+    parser.add_argument("--mode", type=str, nargs='?', default='planner')  # sequential, planner
     parser.add_argument("--debug", action='store_true')
     parser.add_argument("--compare", type=str)
     parser.add_argument("--client", type=str)
@@ -307,11 +432,12 @@ if __name__ == "__main__":
         agent.nb_api_calls = 0
         # agent.nb_tokens = 0
         # call tool funtions
-        agent.set_toolcalling_functions(False)
+        agent.set_toolcalling_functions(mode='sequential', toolcalling=False)
         agent.direct(args.compare)
         agent.logger.info(f"API calls: {agent.nb_api_calls},")  # total amount of tokens: {agent.nb_tokens}")
     else:
         # create conversational agent
-        agent = Agent(toolcalling_functions=args.toolcalling, client=client, model=model, debug=args.debug)
+        agent = Agent(mode=args.mode, toolcalling_functions=args.toolcalling,
+                      client=client, model=model, debug=args.debug)
         # run it
         agent.run()

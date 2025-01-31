@@ -207,7 +207,7 @@ TOOLCALLING_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_annotations",
-            "description": "Analyze existing annotations in the document. Requires a specific layer and feature",
+            "description": "Analyze existing annotations in the document. Requires a specific layer and feature to be saved in memory.",
         },
     },
     {
@@ -263,3 +263,54 @@ TOOLCALLING_TOOLS = [
         },
     },
 ]
+
+
+def system_prompt_sequential_no_tools(functions):
+    functions_string = "".join([f"{fun.__name__}{signature(fun)}:\n\t'''{fun.__doc__}'''\n\n" for fun in functions])
+    return f"""You are an assistant for an annotation software. Your job is to help execute users queries.
+You have functions you can call to gather information that may be required for other functions.
+These informations are stored in your memory. The user_query is already stored in your memory.
+Work step by step and only respond with the next function that should be called to answer the user query.
+If you think you have fulfilled the user query or can sufficienlty answer it, set 'stop' to true and respond in 'content'.
+
+These are you possible functions to call:
+
+{functions_string}
+
+Respond ONLY in the following JSON format where functionname is the name of the function you want to call.
+Parameters is a key:value dictionary of the parameters you want to call it with.
+If you think you have fulfilled the user query or can sufficienlty answer it, set 'stop' to true and respond in 'content'.
+Make sure that true or false is not capitalized!
+Here is an example return JSON:
+{{
+    "function_call": "xxx",
+    "parameters": {{"xxx": "yyy", "aaa":"bbb"}},
+    "stop": false,
+    "content": ""
+}}
+
+Here are some full examples:
+```
+Example 1:
+Input:
+    How fast does a cheetah run?
+Output:
+{{
+    "function_call": "search_context",
+    "parameters": {{"key_phrase": "cheetah speed"}},
+    "stop": false,
+    "content": ""
+}}
+
+Example 2:
+Input:
+    Hello, how are you?
+Output:
+{{
+    "function_call": "",
+    "parameters": {{}},
+    "stop": true,
+    "content": "Thank you for asking, I'm doing good!"
+}}
+```
+"""

@@ -44,8 +44,7 @@ class AgentfunctionsToolcalling():
         }
 
     def search_context(self, key_phrase: str) -> str:
-        """Search for relevent chunks in the text based on the given criteria"""
-        """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
+        """Searches for relevant context in the document text. Helps retrieving more information about a topic. This returns no information about annotations."""
         logger = logging.getLogger("functions")
         logger.debug("inside search\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -98,7 +97,7 @@ class AgentfunctionsToolcalling():
         return contxt_string
 
     def search_annotations(self) -> str:
-        """Iterate over annotations either solely annotations or with sliding context-window"""
+        """Analyze existing annotations in the document. Requires a specific layer and feature to be saved in memory."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -121,7 +120,7 @@ class AgentfunctionsToolcalling():
         return return_result
 
     def summarize_document(self) -> str:
-        """Classifies text based on the scope"""
+        """Summarizes a document. Depending of the scope of the user query, this might be the current document or all documents"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside summarize\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -134,8 +133,7 @@ class AgentfunctionsToolcalling():
         return return_result
 
     def classify_span(self, classification_query: str) -> list[tuple[str, tuple[int, int]]]:
-        """Iterates over text determined by the scope and classifies text based on the criteria
-            First tuple element is the categorization, second is start and end index of the classified text"""
+        """Classifies spans in the document that are relevant according to the classification_query. These are then saved in memory as annotation_poisitions."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -228,7 +226,7 @@ class AgentfunctionsToolcalling():
         return f"I classified relevant spans regarding {classification_query} and saved them in memory under 'annotation_positions'"
 
     def highlight(self) -> void_INCEpTION_UI:
-        """Highlights the given spans from the text"""
+        """Highlights the spans, that are saved in the memory, in the document"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -247,10 +245,7 @@ class AgentfunctionsToolcalling():
         return 'I highlighted the relevant spans from the memory "annotation_positions".'
 
     def annotate(self) -> void_INCEpTION_UI:
-        """First finds most appropriate Layer and Feature from user query
-            then annotates on it
-            The anno pairs consist of first the text for the feature
-            and second the exact corresponding span in the text"""
+        """Creates new annotations on a given layer at a given feature. Uses the spans in the memory to do so. Should only be done if user specifically asks to create annotations."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside annotate\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -271,7 +266,7 @@ class AgentfunctionsToolcalling():
         return 'I annotated the relevant spans from the memory "annotation_positions".'
 
     def get_scope(self) -> str:
-        """analyzes the user_query and returns the document id(s) of the relevant document"""
+        """Analyzes the user query and returns which documents should be considered. By default this returns 'current document'. If specifically asked for in the user query, this might return 'all documents'. This is then saved in memory."""
         logger = logging.getLogger("functions")
         logger.debug("inside get_scope\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -282,6 +277,7 @@ class AgentfunctionsToolcalling():
         return f"The scope of the query is {return_result}"
 
     def get_layer_and_feature(self) -> str:
+        """Returns the annotation layer and annotation feature you should use for new annotations. This is then saved in memory."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside get_layer_and_feature\ncurrent state:")
         logger.debug(self.callback_getstate())
@@ -310,11 +306,7 @@ class AgentfunctionsToolcalling():
         return f"The values for and feature are now known and stored in the memory."
 
     def respond(self) -> str:
-        """Create a response for the user summarizing the functions/intents called 
-            and the previous output
-            Afterwards respond in the chat window"""
-        """Potential Prompt, also get initialy user query as parameter
-        Justify how well you answered the user query"""
+        """Create a response for the user summarizing the functions/intents called and answering the user query"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside respond\ncurrent state:")
         logger.debug(self.callback_getstate())
