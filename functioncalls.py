@@ -45,8 +45,7 @@ class Agentfunctions():
         }
 
     def search_context(self, criteria_query: str) -> str:
-        """Search for relevent chunks in the text based on the given criteria"""
-        """Takes criteria and returns top-k chunks from Vector Store (RAG)"""
+        """Searches for relevant context in the document text. Helps retrieving more information about a topic. This returns no information about annotations."""
         logger = logging.getLogger("functions")
         logger.debug("inside search\tparameters:\tcriteria_query=%s", criteria_query)
         # get relevant chunks from vector store
@@ -93,7 +92,7 @@ class Agentfunctions():
         return contxt_string
 
     def search_annotations(self, layer_and_feature: tuple[str, str], user_query: str) -> str:
-        """Iterate over annotations either solely annotations or with sliding context-window"""
+        """Analyze existing annotations in the document. Requires a specific layer and feature."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside check_annotations\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{user_query=}")
@@ -115,7 +114,7 @@ class Agentfunctions():
         return return_result
 
     def summarize_document(self, scope: str) -> str:
-        """Classifies text based on the scope"""
+        """Summarizes a document. Depending of the scope of the user query, this might be the current document or all documents"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside summarize\nparameters:")
         logger.debug(f"{scope=}\n")
@@ -128,9 +127,10 @@ class Agentfunctions():
         return return_result
 
     def classify_span(self, criteria_query: str, scope: str) -> list[tuple[str, tuple[int, int]]]:
-        """Iterates over text determined by the scope and classifies text based on the criteria
-First tuple element is the categorization, second is start and end index of the classified text.
-Returns the annotation positions."""
+        """Classifies spans in the given document-scope that are relevant according to the classification_query. 
+        tuple element is the categorization, second is start and end index of the classified text.
+        Returns the annotation positions.
+        """
         logger = logging.getLogger("functions")
         logger.debug("\ninside classify_span\nparameters:")
         logger.debug(f"{criteria_query=}\n{scope=}\n")
@@ -213,7 +213,7 @@ Returns the annotation positions."""
         return found_spans
 
     def highlight(self, scope: str, text_to_highlight: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
-        """Highlights the given spans from the text"""
+        """Highlights the given spans in the given document-scope"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside highlight\nparameters:")
         logger.debug(f"{scope=}\n{text_to_highlight=}\n")
@@ -231,10 +231,7 @@ Returns the annotation positions."""
         cas.to_json('temp.json')
 
     def annotate(self, layer_and_feature: tuple[str, str], scope: str, annotation_positions: list[tuple[str, tuple[int, int]]]) -> void_INCEpTION_UI:
-        """First finds most appropriate Layer and Feature from user query
-            then annotates on it
-            The anno pairs consist of first the text for the feature
-            and second the exact corresponding span in the text"""
+        """Creates new annotations at the given positions on a given layer at a given feature. Should only be done if user specifically asks to create annotations."""
         logger = logging.getLogger("functions")
         logger.debug("\ninside annotate\nparameters:")
         logger.debug(f"{layer_and_feature=}\n{scope=}\n{
@@ -255,7 +252,7 @@ Returns the annotation positions."""
         cas.to_json('temp.json')
 
     def get_scope(self, user_query: str) -> tuple[str, str]:
-        """analyzes the user_query and returns the document id(s) of the relevant document"""
+        """Analyzes the user query and returns which documents should be considered. By default this returns 'current document'. If specifically asked for in the user query, this might return 'all documents'."""
         logger = logging.getLogger("functions")
         logger.debug("inside get_scope\nparameters:")
         logger.debug(f"{user_query=}\n")
@@ -266,6 +263,7 @@ Returns the annotation positions."""
         return return_result
 
     def get_layer_and_feature(self, original_user_query: str):
+        """Returns the annotation layer and annotation feature you should use for new annotations"""
         logger = logging.getLogger("functions")
         logger.debug("\ninside get_feature\nparameters:")
         logger.debug(f"{original_user_query=}\n")
