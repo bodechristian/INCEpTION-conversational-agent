@@ -35,6 +35,10 @@ class EvaluatePlanner():
         self.classifications = {}  # storing True Postive, TN, FP, FN for each intent
         self.nb_prompts = 0
         self.nb_errors = 0
+        self.nb_correct_layerandfeature = 0
+        self.nb_incorrect_layerandfeature = 0
+        self.nb_correct_scope = 0
+        self.nb_incorrect_scope = 0
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -98,13 +102,31 @@ class EvaluatePlanner():
             f1score = (2*tp) / (2*tp + fp + fn)
             self.classifications[intent]["f1-score"] = f1score
             f1scores.append((f1score, tp+fn))
+
+        # calculate f1 scores
         f1score_macro = sum([score for score, _ in f1scores])/len(f1scores)
         f1score_micro = sum([score*nb for score, nb in f1scores])/sum([nb for _, nb in f1scores])
+
+        # error rates
         error_rate = 0 if self.nb_errors == 0 else self.nb_errors / self.nb_prompts
+        correct_scope_rate = self.nb_correct_scope / \
+            (self.nb_correct_scope+self.nb_incorrect_scope) if self.nb_correct_scope+self.nb_incorrect_scope > 0 else 0
+        correct_layerandfeature_rate = self.nb_correct_layerandfeature / \
+            (self.nb_correct_layerandfeature+self.nb_incorrect_layerandfeature) if self.nb_correct_layerandfeature + \
+            self.nb_incorrect_layerandfeature > 0 else 0
+
+        # log everything
         self.all_logged_data.append(
-            {**self.classifications, "f1-score-macro": f1score_macro, "f1-score-micro": f1score_micro, "errorrate": error_rate,
-             "total_tokens_prompt": self.agent.nb_tokens_prompt, "total_tokens_completion": self.agent.nb_tokens_completion,
-                "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion})
+            {**self.classifications,
+                "f1-score-macro": f1score_macro,
+                "f1-score-micro": f1score_micro,
+                "errorrate": error_rate,
+                "correct scope rate": correct_scope_rate,
+                "correct layer and feature rate": correct_layerandfeature_rate,
+                "total_tokens_prompt": self.agent.nb_tokens_prompt,
+                "total_tokens_completion": self.agent.nb_tokens_completion,
+                "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion,
+             })
         # Convert and write JSON object to file
         with open(join("test_logs", f"{self.outputfilename}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
@@ -133,7 +155,7 @@ class EvaluatePlanner():
         times_testcases = []
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
             # extract columns from yaml
             prompt = testcase["prompt"]
 
@@ -146,7 +168,32 @@ class EvaluatePlanner():
             detected = set([func for _, func, _ in funcs])
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
+
+            # check if agent errored and called the correct settings
             _is_error = isinstance(result, utils.ParsingException)
+            correct_layerandfeature = ""
+            if testcase['layer'] and testcase['feature']:
+                if 'layer' in self.agent.get_state() and 'feature' in self.agent.get_state():
+                    pred_layer = self.agent.get_state()['layer'].split('.')[-1]  # webanno.custom.Animal -> Animal
+                    pred_feature = self.agent.get_state()['feature']
+                    correct_layerandfeature = (pred_feature == testcase['feature'] and pred_layer == testcase['layer'])
+                    if correct_layerandfeature:
+                        self.nb_correct_layerandfeature += 1
+                    else:
+                        self.nb_incorrect_layerandfeature += 1
+
+            correct_scope = ""
+            if testcase['scope']:
+                # if scope is expected to have a value
+                if 'scope' in self.agent.get_state():
+                    # check if the agent state has set it
+                    pred_scope = self.agent.get_state()['scope']
+                    # and check if its predicted correctly
+                    correct_scope = pred_scope == testcase['scope']
+                    if correct_scope:
+                        self.nb_correct_scope += 1
+                    else:
+                        self.nb_incorrect_scope += 1
 
             if not _is_error:
                 self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
@@ -159,6 +206,8 @@ class EvaluatePlanner():
                 "executed": str_predicted_results,
                 "duration": time_testcase,
                 "error": _is_error,
+                "correct_scope": correct_scope,
+                "correct_layerandfeature": correct_layerandfeature,
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
@@ -334,4 +383,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()
+        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames[1:2]).evaluate()
