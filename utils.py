@@ -38,6 +38,65 @@ def parse_deepseek_response(_str):
     return _str
 
 
+def load_dag(dag: dict) -> dict:
+    """takes in list representing a DAG and returns dict 
+    where keys are functions and their values are functions that have to be completed right before it
+
+    e.g. 
+    {
+        root: ['get_scope', 'get_layer_and_feature'],
+        get_scope: ['classify_span'],
+        get_layer_and_feature: ['annotate'],
+        classify_span: ['annotate'],
+        annotate: ['respond']
+    }
+    -> {
+        root: ['get_scope', 'get_layer_and_feature'],
+        get_scope: ['classify_span'],
+        get_layer_and_feature: ['annotate'],
+        classify_span: ['annotate'],
+        annotate: ['respond'],
+        respond: ['<END>']
+    }"""
+    # tasks in values that are not present as a key only have incoming edges
+    # thus we add END tokens to them
+    a = list(dag.values())
+    tasks = [item for sublist in a for item in sublist]
+    for task in set(tasks):
+        if not task in dag.keys():
+            # add end token
+            dag[task] = ["<END>"]
+    return dag
+
+
+def eval_functions_dag(functions: list, dag: dict[str, list]):
+    """Evaluates an ordered list of functions according to a dag
+    returns validity and number of unnecessary functions
+    dag looks like:
+    {
+        root: [getscope, getlayer],
+        getscope: [classify],
+        getlayer: [annotate],
+        classify: [annotate],
+        annotate: [respond],
+        respond: [<END>]
+    }"""
+    current_nodes = dag["root"]
+    nb_unused_funcs = 0
+    for func in functions:
+        print(current_nodes)
+        if not func in current_nodes:
+            # function was "unnecessary", didN't move pointer further along in dag
+            nb_unused_funcs += 1
+        else:
+            # function moved pointer further ahead
+            current_nodes = [el for el in current_nodes if el != func]  # remove all funcs
+            current_nodes.extend(dag[func])
+    valid = (current_nodes == ["<END>"])
+    print(current_nodes)
+    return valid, nb_unused_funcs
+
+
 class ParsingException:
     """Used to indicate parsing errors without throwing exceptions"""
 
@@ -49,3 +108,17 @@ class ParsingException:
 
     def __str__(self):
         return "<ParsingException> " + self.message
+
+
+if __name__ == "__main__":
+    d = {
+        "root": ['get_scope', 'get_layer_and_feature'],
+        "get_scope": ['classify_span'],
+        "get_layer_and_feature": ['annotate'],
+        "classify_span": ['annotate'],
+        "annotate": ['respond']
+    }
+    d = load_dag(d)
+    print(d)
+    print(eval_functions_dag(dag=d, functions=["get_scope",
+          "get_layer_and_feature", "classify_span", "annotate", "respond"]))
