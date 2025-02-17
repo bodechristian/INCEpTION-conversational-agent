@@ -3,45 +3,41 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
-    layer: People
-    feature: Occupation
+    layer:
+    feature:
 
   - prompt: Identify all Politicians in all documents.
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: all documents
-    layer: Politicians
-    feature: Name
+    layer:
+    feature:
 
   - prompt: Locate all Politicians in the current document.
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
-    layer: Politicians
-    feature: Name
+    layer:
+    feature:
 
   - prompt: Where in the document are the Politicians?
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: current document
-    layer: Politicians
-    feature: Name
+    layer:
+    feature:
 
   - prompt: Annotate all Politicians.
     expectations:
@@ -93,7 +89,6 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: current document

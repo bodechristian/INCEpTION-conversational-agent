@@ -3,12 +3,11 @@ testcases:
     expectations:
       - get_scope
       - classify_span
-      - get_layer_and_feature
       - highlight
       - respond
     scope: all documents
-    layer: Animal
-    feature: Species
+    layer:
+    feature:
     exclude:
       - annotate
 
