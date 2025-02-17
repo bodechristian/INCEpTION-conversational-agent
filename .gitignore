@@ -8,3 +8,4 @@ venv/
 temp.py
 temp.json
 chroma_langchain_db/
+test_logs_midterm/

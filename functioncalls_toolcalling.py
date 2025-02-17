@@ -138,12 +138,12 @@ class AgentfunctionsToolcalling():
         logger.debug("\ninside classify_span\ncurrent state:")
         logger.debug(self.callback_getstate())
 
-        if self.testing:
-            self.callback_getstate()['annotation_positions'] = []
-            return f"I classified relevant spans and saved them in memory under 'annotation_positions'"
-
         if 'scope' not in self.callback_getstate().keys():
             return 'There is currently no scope in the memory'
+
+        if self.testing:
+            self.callback_getstate()['annotation_positions'] = []
+            return f"I classified relevant spans regarding '{classification_query}' and saved them in memory under 'annotation_positions'"
 
         # TODO: ask llm for better criteria query from self.callback_getstate()["user_query"]
         # get text from doc/cas
@@ -223,7 +223,7 @@ class AgentfunctionsToolcalling():
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         # stringify_spans = [f"({cat}, ({s}, {e}))" for (cat, (s, e)) in found_spans]
-        return f"I classified relevant spans regarding {classification_query} and saved them in memory under 'annotation_positions'"
+        return f"I classified relevant spans regarding '{classification_query}' and saved them in memory under 'annotation_positions'"
 
     def highlight(self) -> void_INCEpTION_UI:
         """Highlights the spans, that are saved in the memory, in the document"""

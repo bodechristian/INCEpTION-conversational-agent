@@ -157,7 +157,7 @@ class EvaluatePlanner():
         times_testcases = []
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
             # extract columns from yaml
             prompt = testcase["prompt"]
 
@@ -205,7 +205,7 @@ class EvaluatePlanner():
             # correct settings + correct intents
             completely_correct = (correct_scope == "" or correct_scope == True) and (
                 correct_layerandfeature == "" or correct_layerandfeature == True) and (
-                detected_funcs.sort() == testcase["expectations"].sort())
+                sorted(detected_funcs) == sorted(testcase["expectations"]))
             self.completely_corrects += completely_correct
 
             # log
@@ -393,4 +393,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames[1:2]).evaluate()
+        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()

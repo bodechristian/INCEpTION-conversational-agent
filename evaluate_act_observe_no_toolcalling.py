@@ -140,7 +140,7 @@ class EvaluateActObserveNoToolcalling():
         nb_tokens_prompt = 0
         nb_tokens_completion = 0
 
-        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"]))[:3]:
+        for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
             # take prompt
             prompt = testcase["prompt"]
 
@@ -338,4 +338,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluateActObserveNoToolcalling(client=client, model=CLIENTMODELS[client], filenames=filenames[1:2]).evaluate()
+        EvaluateActObserveNoToolcalling(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()

@@ -152,7 +152,7 @@ SYSTEM_PROMPT_TOOLCALLING = """
 You are an assistant for an annotation software. Your job is to help execute users queries.
 You have functions you can call to gather information that may be required for other functions.
 These informations are stored in your memory. The user_query is already stored in your memory.
-Work step by step and only call one function at a time.
+Consider the functions you have already called and respond with the next step.
 
 Here is an example process:
 

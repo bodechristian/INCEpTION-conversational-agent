@@ -19,9 +19,9 @@ from openai import OpenAI
 from functioncalls_toolcalling import AgentfunctionsToolcalling
 
 CLIENTMODELS = {
-    "cerebras": "llama3.3-70b",
-    "groq": "llama3-70b-8192",
-    "ukp": "llama3.2",  # deepseek-r1:70b, llama3.2, phi4:latest
+    "cerebras": "llama3.1-8b",  # llama3.1-8b, llama3.3-70b
+    "groq": "llama3-70b-8192",  # llama3-70b-8192, gemma2-9b-it
+    "ukp": "qwen2.5:32b",  # deepseek-r1:70b, llama3.2, phi4:latest, llama3.3, command-r7b, dolphin3:latest, qwen2.5:32b
     "openai": "gpt-4o",
     "ollama": "llama3.2:latest",
     "deepseek": "deepseek-chat",
@@ -63,10 +63,10 @@ class Agent():
         self.set_toolcalling_functions(mode=mode, toolcalling=toolcalling_functions)
         self.set_client(client)
         # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
-        self.client_toolcalling = Groq(
-            api_key=os.environ['GROQ_API_KEY'],
+        self.client_toolcalling = Cerebras(
+            api_key=os.environ['CEREBRAS_API_KEY'],
         )
-        self.model_toolcalling = "llama3-groq-70b-8192-tool-use-preview"  # discontinued, potentially use llama-3.3-70b-versatile
+        self.model_toolcalling = "llama3.3-70b"  # discontinued, potentially use llama-3.3-70b-versatile
 
     def initialize_loggers(self, debug):
         # creating logger
