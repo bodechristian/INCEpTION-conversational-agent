@@ -1,62 +1,90 @@
 testcases:
   - prompt: Find all Politicians.
     expectations:
-      - get_scope
-      - classify_span
-      - highlight
-      - respond
+      root:
+        - get_scope
+      get_scope:
+        - classify_span
+      classify_span:
+        - highlight
+      highlight:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Identify all Politicians in all documents.
     expectations:
-      - get_scope
-      - classify_span
-      - highlight
-      - respond
+      root:
+        - get_scope
+      get_scope:
+        - classify_span
+      classify_span:
+        - highlight
+      highlight:
+        - respond
     scope: all documents
     layer:
     feature:
 
   - prompt: Locate all Politicians in the current document.
     expectations:
-      - get_scope
-      - classify_span
-      - highlight
-      - respond
+      root:
+        - get_scope
+      get_scope:
+        - classify_span
+      classify_span:
+        - highlight
+      highlight:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Where in the document are the Politicians?
     expectations:
-      - get_scope
-      - classify_span
-      - highlight
-      - respond
+      root:
+        - get_scope
+      get_scope:
+        - classify_span
+      classify_span:
+        - highlight
+      highlight:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Annotate all Politicians.
     expectations:
-      - get_scope
-      - classify_span
-      - get_layer_and_feature
-      - annotate
-      - respond
+      root:
+        - get_scope
+        - get_layer_and_feature
+      get_scope:
+        - classify_span
+      get_layer_and_feature:
+        - annotate
+      classify_span:
+        - annotate
+      annotate:
+        - respond
     scope: current document
     layer: Politicians
     feature: Name
 
   - prompt: Annotate all Politicians as named entities and assign the label POLITICIAN.
     expectations:
-      - get_scope
-      - classify_span
-      - get_layer_and_feature
-      - annotate
-      - respond
+      root:
+        - get_scope
+        - get_layer_and_feature
+      get_scope:
+        - classify_span
+      get_layer_and_feature:
+        - annotate
+      classify_span:
+        - annotate
+      annotate:
+        - respond
     scope: current document
     layer: Politicians
     feature: Name
@@ -64,68 +92,89 @@ testcases:
 
   - prompt: Check if the named entity annotations are correct.
     expectations:
-      - search_annotations
-      - respond
+      root:
+        - search_annotations
+      search_annotations:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Summarize the document.
     expectations:
-      - summarize_document
-      - respond
+      root:
+        - summarize_document
+      summarize_document:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Tell me a joke
     expectations:
-      - respond
+      root:
+        - respond
     scope:
     layer:
     feature:
 
   - prompt: Highlight all the named entities
     expectations:
-      - get_scope
-      - classify_span
-      - highlight
-      - respond
+      root:
+        - get_scope
+      get_scope:
+        - classify_span
+      classify_span:
+        - highlight
+      highlight:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: What are the most important facts about Politicians?
     expectations:
-      - search_context
-      - respond
+      root:
+        - search_context
+      search_context:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Where in this document are Politicians accused of bribery?
     expectations:
-      - search_context
-      - respond
+      root:
+        - search_context
+      search_context:
+        - respond
     scope: current document
     layer:
     feature:
 
   - prompt: Annotate Politicians with their respective Party
     expectations:
-      - get_scope
-      - classify_span
-      - get_layer_and_feature
-      - annotate
-      - respond
+      root:
+        - get_scope
+        - get_layer_and_feature
+      get_scope:
+        - classify_span
+      get_layer_and_feature:
+        - annotate
+      classify_span:
+        - annotate
+      annotate:
+        - respond
     scope: current document
     layer: Politicians
     feature: Party
 
   - prompt: Who did Hillary Clinton run against?
     expectations:
-      - search_context
-      - respond
+      root:
+        - search_context
+      search_context:
+        - respond
     scope: current document
     layer:
     feature:

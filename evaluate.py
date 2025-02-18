@@ -14,14 +14,15 @@ from agent import CLIENTMODELS, Agent
 
 
 class EvaluatePlanner():
-    def __init__(self, client: str, model: str, filenames=[]) -> None:
+    def __init__(self, client: str, model: str, filenames=[], mode="planner") -> None:
         # the models to evaluate.
         self.client = client
         self.model = model
+        self.mode = mode  # planner, sequential, sequential_no_tools
 
         # read and store yaml test files
         self.filenames = filenames
-        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-planner-{self.client}-{self.model.split(":")[0]}"
+        self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-{self.mode}-{self.client}-{self.model.split(":")[0]}"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -34,12 +35,17 @@ class EvaluatePlanner():
         # initialize global values to keep track of
         self.classifications = {}  # storing True Postive, TN, FP, FN for each intent
         self.nb_prompts = 0
+        self.nb_nonerrored_prompts = 0
         self.nb_errors = 0
         self.nb_correct_layerandfeature = 0
         self.nb_incorrect_layerandfeature = 0
         self.nb_correct_scope = 0
         self.nb_incorrect_scope = 0
+        self.valid_dags = 0
+        self.nb_total_unused_funcs = 0
         self.completely_corrects = 0
+        self.nb_tokens_prompt = 0
+        self.nb_tokens_completion = 0
         # set up logging evaluation results to file
         self.all_logged_data = []
         # each k:v pair is a file+model run, then appended to all_logged_data
@@ -65,7 +71,14 @@ class EvaluatePlanner():
         fh.setLevel(logging.DEBUG)
         l.addHandler(fh)
 
-        self.agent = Agent(client=client, model=model, testing=testing, debug=True)
+        if self.mode == "planner":
+            self.agent = Agent(mode='planner', client=client, model=model, testing=testing, debug=True)
+        elif self.mode == "sequential":
+            self.agent = Agent(mode='sequential', client=client, model=model,
+                               toolcalling_functions=True, testing=testing, debug=True)
+        elif self.mode == "sequential_no_tools":
+            self.agent = Agent(mode='sequential', client=client, model=model,
+                               toolcalling_functions=False, testing=testing, debug=True)
 
     def evaluate(self):
         for file in self.filenames:
@@ -82,28 +95,16 @@ class EvaluatePlanner():
                 "tests": []
             }
 
-            self._eval_end_to_end(file)
+            if self.mode == "planner":
+                self._evaluate_planner(file)
+            elif self.mode == "sequential":
+                self._evaluate_planner(file)
+            elif self.mode == "sequential_no_tools":
+                self._evaluate_planner(file)
 
+            self.nb_tokens_prompt += self.agent.nb_tokens_prompt
+            self.nb_tokens_completion += self.agent.nb_tokens_completion
             self.all_logged_data.append(self.logged_data_per_run)
-        # calculate recall and precision via Recall = tp / (tp+fn) and Precision = tp / (tp+fp)
-        # f1scores are tuples (score, amount_of_acutal_occurences)
-        f1scores = []
-        for intent, vals_dict in self.classifications.items():
-            tp = vals_dict["tp"]
-            tn = vals_dict["tn"]
-            fp = vals_dict["fp"]
-            fn = vals_dict["fn"]
-            recall = 0 if (tp+fn) == 0 else tp / (tp+fn)
-            precision = 0 if (tp+fp) == 0 else tp / (tp+fp)
-            self.classifications[intent]["recall"] = recall
-            self.classifications[intent]["precision"] = precision
-            f1score = (2*tp) / (2*tp + fp + fn)
-            self.classifications[intent]["f1-score"] = f1score
-            f1scores.append((f1score, tp+fn))
-
-        # calculate f1 scores
-        f1score_macro = sum([score for score, _ in f1scores])/len(f1scores)
-        f1score_micro = sum([score*nb for score, nb in f1scores])/sum([nb for _, nb in f1scores])
 
         # error rates
         error_rate = 0 if self.nb_errors == 0 else self.nb_errors / self.nb_prompts
@@ -116,38 +117,21 @@ class EvaluatePlanner():
         # log everything
         self.all_logged_data.append(
             {**self.classifications,
-                "f1-score-macro": f1score_macro,
-                "f1-score-micro": f1score_micro,
                 "errorrate": error_rate,
                 "correct scope rate": correct_scope_rate,
                 "correct layer and feature rate": correct_layerandfeature_rate,
+                "valid DAGs": self.valid_dags / self.nb_nonerrored_prompts,
+                "avg_unused_funcs": self.nb_total_unused_funcs / self.nb_nonerrored_prompts,
                 "completely corrects": self.completely_corrects / self.nb_prompts,
-                "total_tokens_prompt": self.agent.nb_tokens_prompt,
-                "total_tokens_completion": self.agent.nb_tokens_completion,
-                "total_tokens": self.agent.nb_tokens_prompt+self.agent.nb_tokens_completion,
+                "total_tokens_prompt": self.nb_tokens_prompt,
+                "total_tokens_completion": self.nb_tokens_completion,
+                "total_tokens": self.nb_tokens_prompt+self.nb_tokens_completion,
              })
         # Convert and write JSON object to file
         with open(join("test_logs", f"{self.outputfilename}.json"), "w") as outfile:
             json.dump(self.all_logged_data, outfile)
 
-    def do_classifications(self, expected, detected):
-        # make sure it exists already, otherwise add it
-        for el in expected | detected:
-            if not el in self.classifications:
-                self.classifications[el] = {"tp": 0, "tn": 0, "fp": 0, "fn": 0}
-            # add em up
-            if el in expected:
-                if el in detected:
-                    self.classifications[el]['tp'] += 1
-                else:
-                    self.classifications[el]['fn'] += 1
-            else:
-                if el in detected:
-                    self.classifications[el]['fp'] += 1
-                else:
-                    self.classifications[el]['tn'] += 1
-
-    def _eval_end_to_end(self, file):
+    def _evaluate_planner(self, file):
         self.logger.info("\nTesting end to end on %s", file)
         start_time = time.time()
         runs = []
@@ -157,6 +141,7 @@ class EvaluatePlanner():
         for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
             # extract columns from yaml
             prompt = testcase["prompt"]
+            expectations_dag = utils.load_dag(testcase["expectations"])
 
             # prompt planner
             start_time_testcase = time.time()
@@ -165,7 +150,6 @@ class EvaluatePlanner():
             # extract only the functions from the planner response
             funcs = self.agent.parser.analyze_functions(llm_response)
             detected_funcs = [func for _, func, _ in funcs]
-            detected = set(detected_funcs)
             result = self.agent.parser.call_functions(funcs)
             time_testcase = time.time() - start_time_testcase
 
@@ -196,22 +180,27 @@ class EvaluatePlanner():
                         self.nb_incorrect_scope += 1
 
             if not _is_error:
-                self.do_classifications(expected=set(testcase["expectations"]), detected=detected)
+                dag_is_valid, nb_unused_funcs = utils.eval_functions_dag(detected_funcs, expectations_dag)
+                self.nb_nonerrored_prompts += 1
+                self.valid_dags += dag_is_valid
+                self.nb_total_unused_funcs += nb_unused_funcs
             str_predicted_results = ", ".join(detected_funcs)
 
             # correct settings + correct intents
             completely_correct = (correct_scope == "" or correct_scope == True) and (
                 correct_layerandfeature == "" or correct_layerandfeature == True) and (
-                sorted(detected_funcs) == sorted(testcase["expectations"]))
+                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
             self.completely_corrects += completely_correct
 
             # log
             results_dict = {
                 "prompt": prompt,
-                "expected": ", ".join(testcase["expectations"]),
+                "expected": utils.flatten_dag(expectations_dag),
                 "executed": str_predicted_results,
                 "duration": time_testcase,
                 "error": _is_error,
+                "is_valid": dag_is_valid if not _is_error else "",
+                "nb_overcalls": nb_unused_funcs if not _is_error else "",
                 "correct_scope": correct_scope,
                 "correct_layerandfeature": correct_layerandfeature,
                 "completely correct": completely_correct,
@@ -239,10 +228,137 @@ class EvaluatePlanner():
             "total_nb_tokens_completion": self.agent.nb_tokens_completion,
         })
 
+    def _evaluate_sequential(self, file):
+        self.logger.info("\nTesting end to end on %s", file)
+        start_time = time.time()
+        runs = []
+        times_testcases = []
+        nb_tokens_prompt = 0
+        nb_tokens_completion = 0
+
+        for i, testcase in list(enumerate(self.test_input_files[file]["testcases"])):
+            # take prompt
+            prompt = testcase["prompt"]
+            expectations_dag = utils.load_dag(testcase["expectations"])
+
+            # ask agent
+            start_time_testcase = time.time()
+            detected_messages = self.agent.call_llm_toolcalling(user_query=prompt)
+            time_testcase = time.time() - start_time_testcase
+
+            # check response
+            _is_error = isinstance(detected_messages, utils.ParsingException)
+            if _is_error:
+                str_predicted_results = detected_messages.message
+            else:
+                # extract only the functions from the act/observe response
+                detected = utils.get_toolcalls_from_messages(detected_messages)
+                str_predicted_results = ", ".join(detected)
+                dag_is_valid, nb_unused_funcs = utils.eval_functions_dag(detected, expectations_dag)
+                self.valid_dags += dag_is_valid
+                self.nb_total_unused_funcs += nb_unused_funcs
+                self.nb_nonerrored_prompts += 1
+
+            # log
+            results_dict = {
+                "prompt": prompt,
+                "expected": utils.flatten_dag(expectations_dag),
+                "executed": str_predicted_results,
+                "duration": time_testcase,
+                "error": isinstance(detected_messages, utils.ParsingException),
+                "is_valid": dag_is_valid,
+                "nb_overcalls": nb_unused_funcs,
+                "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
+                "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
+            }
+            nb_tokens_prompt = self.agent.nb_tokens_prompt
+            nb_tokens_completion = self.agent.nb_tokens_completion
+            self.nb_prompts += 1
+            if _is_error:
+                self.nb_errors += 1
+
+            times_testcases.append(time_testcase)
+            runs.append(results_dict)
+            # logging
+            self.logger.debug(f"\n{results_dict}")
+        self.logged_data_per_run["tests"].append({
+            "test_name": "called_functions",
+            "amount": i+1,
+            "duration": time.time() - start_time,
+            "average_testcase_duration": sum(times_testcases)/len(times_testcases),
+            "runs": runs,
+            "total_nb_tokens_prompt": self.agent.nb_tokens_prompt,
+            "total_nb_tokens_completion": self.agent.nb_tokens_completion,
+        })
+
+    def _evaluate_sequential_no_tools(self, file):
+        self.logger.info("\nTesting end to end on %s", file)
+        start_time = time.time()
+        runs = []
+        times_testcases = []
+        nb_tokens_prompt = 0
+        nb_tokens_completion = 0
+
+        for i, testcase in enumerate(self.test_input_files[file]["testcases"]):
+            # take prompt
+            prompt = testcase["prompt"]
+            expectations_dag = utils.load_dag(testcase["expectations"])
+
+            # ask agent
+            start_time_testcase = time.time()
+            detected_messages = self.agent.call_llm_sequential_no_tools(user_query=prompt)
+            time_testcase = time.time() - start_time_testcase
+
+            # check response
+            _is_error = isinstance(detected_messages, utils.ParsingException)
+            if _is_error:
+                str_predicted_results = detected_messages.message
+            else:
+                # extract only the functions from the act/observe response
+                detected = utils.get_toolcalls_from_messages(detected_messages)
+                str_predicted_results = ", ".join(detected)
+                dag_is_valid, nb_unused_funcs = utils.eval_functions_dag(detected, expectations_dag)
+                self.valid_dags += dag_is_valid
+                self.nb_total_unused_funcs += nb_unused_funcs
+                self.nb_nonerrored_prompts += 1
+
+            # log
+            results_dict = {
+                "prompt": prompt,
+                "expected": utils.flatten_dag(expectations_dag),
+                "executed": str_predicted_results,
+                "duration": time_testcase,
+                "error": isinstance(detected_messages, utils.ParsingException),
+                "is_valid": dag_is_valid,
+                "nb_overcalls": nb_unused_funcs,
+                "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
+                "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
+            }
+            nb_tokens_prompt = self.agent.nb_tokens_prompt
+            nb_tokens_completion = self.agent.nb_tokens_completion
+            self.nb_prompts += 1
+            if _is_error:
+                self.nb_errors += 1
+
+            times_testcases.append(time_testcase)
+            runs.append(results_dict)
+            # logging
+            self.logger.debug(f"\n{results_dict}")
+        self.logged_data_per_run["tests"].append({
+            "test_name": "called_functions",
+            "amount": i+1,
+            "duration": time.time() - start_time,
+            "average_testcase_duration": sum(times_testcases)/len(times_testcases),
+            "runs": runs,
+            "total_nb_tokens_prompt": self.agent.nb_tokens_prompt,
+            "total_nb_tokens_completion": self.agent.nb_tokens_completion,
+        })
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--client", type=str)
+    parser.add_argument("--mode", type=str, nargs='?', default='planner')
     args = parser.parse_args()
 
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
@@ -250,4 +366,4 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames).evaluate()
+        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames, mode=args.mode).evaluate()

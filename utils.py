@@ -84,7 +84,6 @@ def eval_functions_dag(functions: list, dag: dict[str, list]):
     current_nodes = dag["root"]
     nb_unused_funcs = 0
     for func in functions:
-        print(current_nodes)
         if not func in current_nodes:
             # function was "unnecessary", didN't move pointer further along in dag
             nb_unused_funcs += 1
@@ -93,8 +92,47 @@ def eval_functions_dag(functions: list, dag: dict[str, list]):
             current_nodes = [el for el in current_nodes if el != func]  # remove all funcs
             current_nodes.extend(dag[func])
     valid = (current_nodes == ["<END>"])
-    print(current_nodes)
     return valid, nb_unused_funcs
+
+
+def flatten_dag(dag) -> str:
+    """dag:
+        {
+        root: [getscope, getlayer],
+        getscope: [classify],
+        getlayer: [annotate],
+        classify: [annotate],
+        annotate: [respond],
+        respond: [<END>]
+    }
+    ->
+    'getscope -> classify, getlayer -> annotate -> respond'
+    """
+    # get last nodes (incoming edge but no outgoing)
+    last_nodes = []
+    for k, v in dag.items():
+        if v == ["<END>"]:
+            last_nodes.append(k)
+    # go backwards
+    lst = [last_nodes]
+    while True:
+        lst_temp = []
+        for k, vs in dag.items():
+            # go backwards an edge
+            for v in vs:
+                if v in lst[0] and k != "root":
+                    lst_temp.append(k)
+        if lst_temp != []:
+            # add all the previous nodes
+            lst.insert(0, lst_temp)
+        else:
+            # temporary list is empty, so nothing was added and we re done
+            break
+
+    # [[getscope], [classify, getlayer], [annotate], [respond]]
+    # getscope -> classify, getlayer -> annotate -> respond
+    _str = ' -> '.join([', '.join(sublist) for sublist in lst])
+    return _str
 
 
 class ParsingException:
@@ -120,5 +158,6 @@ if __name__ == "__main__":
     }
     d = load_dag(d)
     print(d)
-    print(eval_functions_dag(dag=d, functions=["get_scope",
+    print(eval_functions_dag(dag=d, functions=["get_scope", "search_context",
           "get_layer_and_feature", "classify_span", "annotate", "respond"]))
+    print(flatten_dag(d))
