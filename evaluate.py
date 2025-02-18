@@ -98,9 +98,9 @@ class EvaluatePlanner():
             if self.mode == "planner":
                 self._evaluate_planner(file)
             elif self.mode == "sequential":
-                self._evaluate_planner(file)
+                self._evaluate_sequential(file)
             elif self.mode == "sequential_no_tools":
-                self._evaluate_planner(file)
+                self._evaluate_sequential_no_tools(file)
 
             self.nb_tokens_prompt += self.agent.nb_tokens_prompt
             self.nb_tokens_completion += self.agent.nb_tokens_completion
