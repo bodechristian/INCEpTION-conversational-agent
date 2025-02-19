@@ -155,6 +155,8 @@ class EvaluatePlanner():
 
             # check if agent errored and called the correct settings
             _is_error = isinstance(result, utils.ParsingException)
+            # check response
+            # layer & feature
             correct_layerandfeature = ""
             if testcase['layer'] and testcase['feature']:
                 if 'layer' in self.agent.get_state() and 'feature' in self.agent.get_state():
@@ -165,7 +167,7 @@ class EvaluatePlanner():
                         self.nb_correct_layerandfeature += 1
                     else:
                         self.nb_incorrect_layerandfeature += 1
-
+            # scope
             correct_scope = ""
             if testcase['scope']:
                 # if scope is expected to have a value
@@ -247,6 +249,31 @@ class EvaluatePlanner():
             time_testcase = time.time() - start_time_testcase
 
             # check response
+            # layer & feature
+            correct_layerandfeature = ""
+            if testcase['layer'] and testcase['feature']:
+                if 'layer' in self.agent.get_state() and 'feature' in self.agent.get_state():
+                    pred_layer = self.agent.get_state()['layer'].split('.')[-1]  # webanno.custom.Animal -> Animal
+                    pred_feature = self.agent.get_state()['feature']
+                    correct_layerandfeature = (pred_feature == testcase['feature'] and pred_layer == testcase['layer'])
+                    if correct_layerandfeature:
+                        self.nb_correct_layerandfeature += 1
+                    else:
+                        self.nb_incorrect_layerandfeature += 1
+            # scope
+            correct_scope = ""
+            if testcase['scope']:
+                # if scope is expected to have a value
+                if 'scope' in self.agent.get_state():
+                    # check if the agent state has set it
+                    pred_scope = self.agent.get_state()['scope']
+                    # and check if its predicted correctly
+                    correct_scope = pred_scope == testcase['scope']
+                    if correct_scope:
+                        self.nb_correct_scope += 1
+                    else:
+                        self.nb_incorrect_scope += 1
+            # error
             _is_error = isinstance(detected_messages, utils.ParsingException)
             if _is_error:
                 str_predicted_results = detected_messages.message
@@ -259,6 +286,12 @@ class EvaluatePlanner():
                 self.nb_total_unused_funcs += nb_unused_funcs
                 self.nb_nonerrored_prompts += 1
 
+            # correct settings + correct intents
+            completely_correct = (correct_scope == "" or correct_scope == True) and (
+                correct_layerandfeature == "" or correct_layerandfeature == True) and (
+                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
+            self.completely_corrects += completely_correct
+
             # log
             results_dict = {
                 "prompt": prompt,
@@ -268,9 +301,13 @@ class EvaluatePlanner():
                 "error": isinstance(detected_messages, utils.ParsingException),
                 "is_valid": dag_is_valid,
                 "nb_overcalls": nb_unused_funcs,
+                "correct_scope": correct_scope,
+                "correct_layerandfeature": correct_layerandfeature,
+                "completely correct": completely_correct,
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
+
             nb_tokens_prompt = self.agent.nb_tokens_prompt
             nb_tokens_completion = self.agent.nb_tokens_completion
             self.nb_prompts += 1
@@ -310,6 +347,31 @@ class EvaluatePlanner():
             time_testcase = time.time() - start_time_testcase
 
             # check response
+            # layer & feature
+            correct_layerandfeature = ""
+            if testcase['layer'] and testcase['feature']:
+                if 'layer' in self.agent.get_state() and 'feature' in self.agent.get_state():
+                    pred_layer = self.agent.get_state()['layer'].split('.')[-1]  # webanno.custom.Animal -> Animal
+                    pred_feature = self.agent.get_state()['feature']
+                    correct_layerandfeature = (pred_feature == testcase['feature'] and pred_layer == testcase['layer'])
+                    if correct_layerandfeature:
+                        self.nb_correct_layerandfeature += 1
+                    else:
+                        self.nb_incorrect_layerandfeature += 1
+            # scope
+            correct_scope = ""
+            if testcase['scope']:
+                # if scope is expected to have a value
+                if 'scope' in self.agent.get_state():
+                    # check if the agent state has set it
+                    pred_scope = self.agent.get_state()['scope']
+                    # and check if its predicted correctly
+                    correct_scope = pred_scope == testcase['scope']
+                    if correct_scope:
+                        self.nb_correct_scope += 1
+                    else:
+                        self.nb_incorrect_scope += 1
+            # error
             _is_error = isinstance(detected_messages, utils.ParsingException)
             if _is_error:
                 str_predicted_results = detected_messages.message
@@ -322,6 +384,12 @@ class EvaluatePlanner():
                 self.nb_total_unused_funcs += nb_unused_funcs
                 self.nb_nonerrored_prompts += 1
 
+            # correct settings + correct intents
+            completely_correct = (correct_scope == "" or correct_scope == True) and (
+                correct_layerandfeature == "" or correct_layerandfeature == True) and (
+                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
+            self.completely_corrects += completely_correct
+
             # log
             results_dict = {
                 "prompt": prompt,
@@ -331,9 +399,13 @@ class EvaluatePlanner():
                 "error": isinstance(detected_messages, utils.ParsingException),
                 "is_valid": dag_is_valid,
                 "nb_overcalls": nb_unused_funcs,
+                "correct_scope": correct_scope,
+                "correct_layerandfeature": correct_layerandfeature,
+                "completely correct": completely_correct,
                 "nb_tokens_prompt": self.agent.nb_tokens_prompt - nb_tokens_prompt,
                 "nb_tokens_completion": self.agent.nb_tokens_completion - nb_tokens_completion,
             }
+
             nb_tokens_prompt = self.agent.nb_tokens_prompt
             nb_tokens_completion = self.agent.nb_tokens_completion
             self.nb_prompts += 1
