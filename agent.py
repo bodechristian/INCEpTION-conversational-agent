@@ -220,6 +220,7 @@ class Agent():
         if chat_completion.choices[0].finish_reason == "stop":
             # no tools need to be called, just respond
             self.logger.info(TOOLCALLING_OUTPUT, return_result.content)
+            messages.append({"role": "assistant",  "content": return_result.content})
             return messages
         else:
             # tools are called, keep calling them until llm says stop
@@ -400,10 +401,13 @@ class Agent():
             user_prompt = input("Enter prompt: ")
             func_call(user_prompt)
             time.sleep(1)
-            self.state = {}
+            self.clear_state()
 
     def get_state(self):
         return self.state
+
+    def clear_state(self):
+        self.state = {}
 
 
 if __name__ == "__main__":

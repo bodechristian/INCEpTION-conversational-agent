@@ -142,6 +142,7 @@ class EvaluatePlanner():
             # extract columns from yaml
             prompt = testcase["prompt"]
             expectations_dag = utils.load_dag(testcase["expectations"])
+            self.agent.clear_state()
 
             # prompt planner
             start_time_testcase = time.time()
@@ -242,6 +243,7 @@ class EvaluatePlanner():
             # take prompt
             prompt = testcase["prompt"]
             expectations_dag = utils.load_dag(testcase["expectations"])
+            self.agent.clear_state()
 
             # ask agent
             start_time_testcase = time.time()
@@ -277,6 +279,7 @@ class EvaluatePlanner():
             _is_error = isinstance(detected_messages, utils.ParsingException)
             if _is_error:
                 str_predicted_results = detected_messages.message
+                dag_is_valid, nb_unused_funcs = "", ""
             else:
                 # extract only the functions from the act/observe response
                 detected = utils.get_toolcalls_from_messages(detected_messages)
@@ -340,6 +343,7 @@ class EvaluatePlanner():
             # take prompt
             prompt = testcase["prompt"]
             expectations_dag = utils.load_dag(testcase["expectations"])
+            self.agent.clear_state()
 
             # ask agent
             start_time_testcase = time.time()
