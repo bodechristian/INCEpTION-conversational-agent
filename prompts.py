@@ -65,6 +65,36 @@ Output:
     There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
 
 
+def get_system_prompt_classify(criteria_query):
+    return f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
+Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
+Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
+Pay special attention to using the same whitespace and newline characters as the input.
+
+Example 1:
+Input:
+    Query: animals
+    Duke asked Lulu to tell him a story about cats and dogs living together in harmony.
+
+Output:
+    Duke asked Lulu to tell him a story about <animal>cats</animal> and <animal>dogs</animal> living together in harmony.
+
+Example 2:
+Input:
+    Query: food
+    There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
+
+Output:
+    There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
+
+
+def get_system_prompt_classify_no_icl(criteria_query):
+    return f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
+Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
+Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
+Pay special attention to using the same whitespace and newline characters as the input."""
+
+
 SYSTEM_PROMPT_SUMMARIZE = """Your job is to summarize documents. Summarize this following document:"""
 SYSTEM_PROMPT_GETSCOPE = """You are an assistant for an annotation software.
 Your job is to identify whether a query written by a user refers only to the current document or all documents.

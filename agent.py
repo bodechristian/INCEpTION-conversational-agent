@@ -17,11 +17,13 @@ from mock_annotation_tool import MockAnnotationTool
 from groq import Groq
 from openai import OpenAI
 from functioncalls_toolcalling import AgentfunctionsToolcalling
+from functioncalls_classify import AgentfunctionsClassify
 
 CLIENTMODELS = {
     "cerebras": "llama3.1-8b",  # llama3.1-8b, llama3.3-70b
     "groq": "llama3-70b-8192",  # llama3-70b-8192, gemma2-9b-it
-    "ukp": "qwen2.5:32b",  # deepseek-r1:70b, llama3.2, phi4:latest, llama3.3, command-r7b, dolphin3:latest, qwen2.5:32b
+    # deepseek-r1:70b, llama3.2, phi4:latest, llama3.3, command-r7b, dolphin3:latest, qwen2.5:32b, llama3.2:3b-instruct-q4_K_M
+    "ukp": "qwen2.5:72b",
     "openai": "gpt-4o",
     "ollama": "llama3.2:latest",
     "deepseek": "deepseek-chat",
@@ -39,7 +41,7 @@ class SequentialWithoutToolcalling(BaseModel):
 
 class Agent():
     # cerebras: llama3.3-70b, groq:llama3-70b-8192, llama3-groq-70b-versatile, ukp: llama3.2, openai: gpt-4o, gpt-4o-mini, ollama: mistral-latest
-    def __init__(self, mode="planner", model="llama3.3-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False) -> None:
+    def __init__(self, mode="planner", model="llama3.3-70b", client="cerebras", toolcalling_functions=False, testing=False, debug=False, no_logs=False, test_classify=False) -> None:
         # save options
         self.mode = mode
         self.state = {}
@@ -61,6 +63,8 @@ class Agent():
         self.softwareenv = MockAnnotationTool()
 
         self.set_toolcalling_functions(mode=mode, toolcalling=toolcalling_functions)
+        if test_classify:
+            self.functionclass_classify = AgentfunctionsClassify(self.softwareenv, self.call_llm, self.get_state)
         self.set_client(client)
         # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
         self.client_toolcalling = Cerebras(
@@ -317,8 +321,6 @@ class Agent():
             self.nb_tokens_completion += chat_completion.usage.completion_tokens
 
             return_result = chat_completion.choices[0].message
-            print("return result:")
-            print(return_result.content)
             return_json = self.parse_json_sequential_no_tools(return_result.content)
         except Exception as error:
             self.logger.debug(error)
@@ -359,8 +361,6 @@ class Agent():
                     self.nb_tokens_completion += chat_completion.usage.completion_tokens
 
                     return_result = chat_completion.choices[0].message
-                    print("return result:")
-                    print(return_result.content)
                     return_json = self.parse_json_sequential_no_tools(return_result.content)
                     nb_iters += 1
                 except Exception as error:
