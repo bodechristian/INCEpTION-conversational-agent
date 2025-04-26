@@ -10,3 +10,4 @@ temp.json
 chroma_langchain_db/
 test_logs_midterm/
 test_logs_classify/
+test_logs_*
