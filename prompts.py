@@ -15,7 +15,7 @@ There are several FUNCTIONS you can call to help you answer the user's query:
 
 Answer only in a list where each function call is in its own line. Parameters can not be other functions.
 NEVER nest functions.
-Each line begins with '$n = ' where n is the number of the line.
+Each line begins with '$n = ' where n is the number of the line. Followed by the name of the function and then its parameters in a python like style.
 Here are some examples:
 ```
 Example 1:
@@ -37,32 +37,92 @@ Output:
 ```"""
 
 
-USER_QUERY_DEFAULT = """
-Please annotate every animal as such?
-"""
+def get_system_prompt_planner_hugginggpt(functions):
+    functions_string = "".join([f"{fun.__name__}{signature(fun)}:\n\t'''{fun.__doc__}'''\n\n" for fun in functions])
+    return f"""You are a friendly intelligent assistant.
+You work inside the annotation tool INCEpTION.
+INCEpTION can contain multiple documents, but by default the user is refering to the current document.
+Annotations have a layer that they are on, and a feature that is a string.
+Your goal is to support the user in performing their annotation tasks.
 
+There are several FUNCTIONS you can call to help you answer the user's query:
 
-def get_system_prompt_classify(criteria_query):
-    return f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
-Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
-Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
-Pay special attention to using the same whitespace and newline characters as the input.
+{functions_string}
 
+Answer as a list with the following JSON format:
+{{
+    "plan": [
+        {{"task": functionname, "id": task_id, "dep": [dependency_task_ids],
+            "args": {{"scope": text, ...}}
+        }},
+        {{...
+        }}
+    ]
+}}
+The "dep" field denotes the id of the previous task which generates a new resource upon which the current task relies. 
+It is -1 if it doesn't rely on any other task.
+The tag "<resource>-task_id" represents the generated content from the dependency task with the corresponding task_id.
+Please note that there exists a logical connections and order between the tasks.
+
+Here are some examples:
+```
 Example 1:
 Input:
-    Query: animals
-    Duke asked Lulu to tell him a story about cats and dogs living together in harmony.
-
+    How fast does a cheetah run?
 Output:
-    Duke asked Lulu to tell him a story about <animal>cats</animal> and <animal>dogs</animal> living together in harmony.
+{{"plan": [ {{"task": "search_context", "id", 0, "dep": [-1], "args": {{"criteria_query":"cheetah run speed"}}}},{{ "task": "respond", "id": 1, "dep": [0],"args": {{"original_query":"How fast does a cheetah run?", "context":"<resource>-0"}}}}]}}
 
 Example 2:
 Input:
-    Query: food
-    There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
-
+    Annotate every animal as such
 Output:
-    There is a saying that an <food>apple</food> a day keeps the doctor away. But I much prefer <food>peaches</food> or <food>bananas</food>."""
+{{"plan": [{{"task": "get_scope", "id", 0, "dep": [-1],"args": {{"user_query":"annotate every animal as such"}}}},{{"task": "classify_span", "id": 1, "dep": [0],"args": {{"criteria_query":"animal", "scope":"<resource>-0"}} }},{{"task": "get_layer_and_feature", "id": 2, "dep": [-1],"args": {{"original_user_query":"annotate every animal as such"}}}},{{"task": "annotate", "id": 3, "dep": [0,1,2],
+"args": {{"layer_and_feature":"<resource>-2", "scope":"<resource>-0", "annotation_positions":"<resource>-1"}}}},{{"task": "respond", "id": 4, "dep": [-1],
+"args": {{"original_query":"Annotate every animal as such", "context":"I Annotated every animal"}}}}]}}
+```
+"""
+
+
+def get_system_prompt_planner_parampred(functions, layerandfeatures):
+    functions_string = "".join([f"{fun.__name__}{signature(fun)}:\n\t'''{fun.__doc__}'''\n\n" for fun in functions])
+    layerandfeatures = [(l, f) for l in layerandfeatures.keys() for f in layerandfeatures[l]]
+    return f"""You are a friendly intelligent assistant.
+You work inside the annotation tool INCEpTION.
+INCEpTION can contain multiple documents, but by default the user is refering to the 'current document'. Which document the user is refering to is called 'scope'.
+Annotations are created on a layer and feature pair. These are the possible layer and feature pairs:
+{layerandfeatures}
+Your goal is to support the user in performing their annotation tasks.
+
+There are several FUNCTIONS you can call to help you answer the user's query:
+
+{functions_string}
+
+Answer only in a list where each function call is in its own line. Parameters can not be other functions.
+NEVER nest functions.
+Each line begins with '$n = ' where n is the number of the line.
+Here are some examples:
+```
+Example 1:
+Input:
+    How fast does a cheetah run?
+Output:
+    $1 = search_context(criteria_query="cheetah run speed")
+    $2 = respond()
+    
+Example 2:
+Input:
+    Annotate every animal as such
+Output:
+    $1 = classify_span(criteria_query="animal", scope="current document")
+    $2 = annotate(layer="webanno.custom.Animal", feature="Species", scope="current document", criteria="animal")
+    $3 = respond()
+```
+"""
+
+
+USER_QUERY_DEFAULT = """
+Please annotate every animal as such?
+"""
 
 
 def get_system_prompt_classify(criteria_query):
@@ -116,7 +176,7 @@ User's query:"""
 
 def get_system_prompt_respond(contxt):
     return f"""You are a conversational assistent in a bigger system. Your job is to respond to the user after already completing multiple steps.
-You get additional context from the previous steps that another assistent in the bigger system completed.
+You get additional context about the previous steps that other assistants in the bigger system completed.
 The user does not know of these steps.
 The context may describe what you've already done or help you answer the query. Respond to the user from the perspective of the bigger system.
 
@@ -182,7 +242,7 @@ SYSTEM_PROMPT_TOOLCALLING = """
 You are an assistant for an annotation software. Your job is to help execute users queries.
 You have functions you can call to gather information that may be required for other functions.
 These informations are stored in your memory. The user_query is already stored in your memory.
-Consider the functions you have already called and respond with the next step.
+Consider the functions you have already called and the thought from the previous step and respond with what function should be called next if any.
 
 Here is an example process:
 
@@ -206,6 +266,25 @@ process:
 
 user_query:
 """
+
+SYSTEM_PROMPT_TOOLCALLING_THOUGHT = """
+You are an assistant for an annotation software.
+The system has some functions it can call but YOU DO NOT CALL ANY FUNCTIONS.
+Considering the functions you have already called, your job is to create a singular sentence to describe your thoughts about the question you have been asked and the next step you should take."""
+
+
+def get_system_prompt_toolcalling_thought_ollama(funcs):
+    functions = "\n".join([f"{f.__name__}: {f.__doc__}" for f in funcs])
+    return f"""
+You are an assistant for an annotation software.
+The system has some functions it can call but YOU DO NOT CALL ANY FUNCTIONS.
+Considering the functions you have already called, your job is to create a singular sentence to describe your thoughts about the question you have been asked and the next step you should take.
+
+These are the functions that exist: 
+{functions}
+"""
+
+
 TOOLCALLING_INPUT = """--------------------------\n
 user input:
 %s
