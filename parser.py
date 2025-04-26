@@ -2,13 +2,33 @@ import re
 import sys
 import logging
 
-from functioncalls import Agentfunctions
+from functioncalls_planner import Agentfunctions
 from mock_annotation_tool import MockAnnotationTool
 import utils
 
 
-class Dollarparser():
+from abc import ABC, abstractmethod
 
+
+class Parser(ABC):
+    @abstractmethod
+    def __init__(self, functionclass: Agentfunctions):
+        self.functionclass = functionclass
+
+    @abstractmethod
+    def analyze_functions(self, funcs):
+        pass
+
+    @abstractmethod
+    def call_functions(self, funcs):
+        pass
+
+    @abstractmethod
+    def analyze_and_execute(self, funcs):
+        pass
+
+
+class Dollarparser():
     def __init__(self, functionclass: Agentfunctions) -> None:
         self.functionclass = functionclass
         self.valid_functions_str = "|".join(
@@ -71,6 +91,47 @@ class Dollarparser():
         $4 = get_feature(original_user_query="annotate every animal as such", layer=$3)
         $5 = annotate(layer=$3, feature=$4, scope=$1, annotation_positions=$2)
         $6 = respond(context="")"""
+
+        functions = self.analyze_functions(input_string)
+        last_output = self.call_functions(functions)
+        return last_output
+
+
+class HuggingGPTparser():
+    def __init__(self, functionclass: Agentfunctions) -> None:
+        self.functionclass = functionclass
+
+    def analyze_functions(self, funcs):
+        functions = []
+        for f in funcs.plan:
+            functions.append((f.id, f.task, f.args))
+        return functions
+
+    def call_functions(self, funcs):
+        try:
+            cache_return_values = dict()
+            for id, function_to_call, parameters in funcs:
+                for k, v in parameters.items():
+                    # replace <resource> tag with value in cache
+                    if "<resource>-" in v:
+                        parameters[k] = cache_return_values[v.split("<resource>-")[1]]
+                # call the actual function
+                return_value = self.functionclass.valid_functions[function_to_call](**parameters)
+                # save return value in cache under the respective line number
+                if return_value:
+                    cache_return_values[str(id)] = return_value
+                else:  # called function returns None
+                    cache_return_values[str(id)] = ""  # soll evtl fehler werfen?
+            # returns the last cache entry (assumed to be response)
+            if (el := cache_return_values[str(len(funcs)-1)]) != "":
+                return el
+        except Exception as error:
+            logger = logging.getLogger("output")
+            logger.debug(error)
+            return utils.ParsingException(message=f'executing dollar syntax | {error}')
+
+    def analyze_and_execute_dollar_syntax(self, input_string: str) -> None:
+        """Analyzes and executes functions from a specific syntax."""
 
         functions = self.analyze_functions(input_string)
         last_output = self.call_functions(functions)

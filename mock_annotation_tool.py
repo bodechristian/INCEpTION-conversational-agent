@@ -135,6 +135,19 @@ class MockAnnotationTool():
     def get_current_documenttext(self):
         return self.documents[self.current_document_id].sofa_string
 
+    def get_all_documenttext(self):
+        txts = ""
+        for k, v in self.documents.items():
+            txts += f"\n{self.map_idtoname[k]}\n"
+            txts += f"{v.sofa_string}\n"
+        return txts
+
+    def get_all_documenttext_as_dict(self):
+        txts = {}
+        for k, v in self.documents.items():
+            txts[self.map_idtoname[k]] = v.sofa_string
+        return txts
+
     def get_vectorstore(self):
         return self.vector_store
 

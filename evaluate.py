@@ -14,15 +14,22 @@ from agent import CLIENTMODELS, Agent
 
 
 class EvaluatePlanner():
-    def __init__(self, client: str, model: str, filenames=[], mode="planner") -> None:
+    def __init__(self, client: str, model: str, filenames=[], mode="planner", huggingGPT=False, param_pred=False, add_thoughts=False) -> None:
         # the models to evaluate.
         self.client = client
         self.model = model
         self.mode = mode  # planner, sequential, sequential_no_tools
+        self.huggingGPT = huggingGPT
+        self.param_pred = param_pred
+        self.add_thoughts = add_thoughts
 
         # read and store yaml test files
         self.filenames = filenames
         self.outputfilename = f"{time.strftime("%Y%m%d-%H%M%S")}-{self.mode}-{self.client}-{self.model.split(":")[0]}"
+        if add_thoughts:
+            self.outputfilename += "-thoughts"
+        if huggingGPT:
+            self.outputfilename += "-huggingGPT"
         self.test_input_files = {}
         for _filename in self.filenames:
             with open(join(getcwd(), "testfiles", _filename)) as f:
@@ -72,9 +79,22 @@ class EvaluatePlanner():
         l.addHandler(fh)
 
         if self.mode == "planner":
-            self.agent = Agent(mode='planner', client=client, model=model, testing=testing, debug=True)
+            if self.param_pred:
+                if self.huggingGPT:
+                    self.agent = Agent(mode='planner', client=client, model=model, testing=testing,
+                                       debug=True, param_prediction_by_planner=True, huggingGPT=True)
+                else:
+                    self.agent = Agent(mode='planner', client=client, model=model, testing=testing,
+                                       debug=True, param_prediction_by_planner=True)
+            else:
+                if self.huggingGPT:
+                    self.agent = Agent(mode='planner', client=client, model=model, testing=testing,
+                                       debug=True, huggingGPT=True)
+                else:
+                    self.agent = Agent(mode='planner', client=client, model=model, testing=testing, debug=True)
+
         elif self.mode == "sequential":
-            self.agent = Agent(mode='sequential', client=client, model=model,
+            self.agent = Agent(mode='sequential', client=client, model=model, add_thoughts=self.add_thoughts,
                                toolcalling_functions=True, testing=testing, debug=True)
         elif self.mode == "sequential_no_tools":
             self.agent = Agent(mode='sequential', client=client, model=model,
@@ -120,8 +140,8 @@ class EvaluatePlanner():
                 "errorrate": error_rate,
                 "correct scope rate": correct_scope_rate,
                 "correct layer and feature rate": correct_layerandfeature_rate,
-                "valid DAGs": self.valid_dags / self.nb_nonerrored_prompts,
-                "avg_unused_funcs": self.nb_total_unused_funcs / self.nb_nonerrored_prompts,
+                "valid DAGs": self.valid_dags / self.nb_nonerrored_prompts if self.nb_nonerrored_prompts > 0 else 0,
+                "avg_unused_funcs": self.nb_total_unused_funcs / self.nb_nonerrored_prompts if self.nb_nonerrored_prompts > 0 else "-",
                 "completely corrects": self.completely_corrects / self.nb_prompts,
                 "total_tokens_prompt": self.nb_tokens_prompt,
                 "total_tokens_completion": self.nb_tokens_completion,
@@ -146,13 +166,23 @@ class EvaluatePlanner():
 
             # prompt planner
             start_time_testcase = time.time()
-            llm_response = self.agent.call_llm_planner(prompt, execute_functions=False)
+            if self.param_pred:
+                llm_response = self.agent.call_llm_planner_parampred(prompt, execute_functions=False)
+            else:
+                llm_response = self.agent.call_llm_planner(prompt, execute_functions=False)
 
             # extract only the functions from the planner response
-            funcs = self.agent.parser.analyze_functions(llm_response)
-            detected_funcs = [func for _, func, _ in funcs]
-            result = self.agent.parser.call_functions(funcs)
-            time_testcase = time.time() - start_time_testcase
+            if not isinstance(llm_response, utils.ParsingException):
+                funcs = self.agent.parser.analyze_functions(llm_response)
+                if self.param_pred:
+                    detected_funcs = utils.detect_functions_parampred([func for _, func, _ in funcs])
+                else:
+                    detected_funcs = [func for _, func, _ in funcs]
+                result = self.agent.parser.call_functions(funcs)
+                time_testcase = time.time() - start_time_testcase
+            else:
+                result = llm_response
+                detected_funcs = []
 
             # check if agent errored and called the correct settings
             _is_error = isinstance(result, utils.ParsingException)
@@ -168,6 +198,10 @@ class EvaluatePlanner():
                         self.nb_correct_layerandfeature += 1
                     else:
                         self.nb_incorrect_layerandfeature += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_layerandfeature = False
+                    self.nb_incorrect_layerandfeature += 1
             # scope
             correct_scope = ""
             if testcase['scope']:
@@ -181,6 +215,10 @@ class EvaluatePlanner():
                         self.nb_correct_scope += 1
                     else:
                         self.nb_incorrect_scope += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_scope = False
+                    self.nb_incorrect_scope += 1
 
             if not _is_error:
                 dag_is_valid, nb_unused_funcs = utils.eval_functions_dag(detected_funcs, expectations_dag)
@@ -262,6 +300,10 @@ class EvaluatePlanner():
                         self.nb_correct_layerandfeature += 1
                     else:
                         self.nb_incorrect_layerandfeature += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_layerandfeature = False
+                    self.nb_incorrect_layerandfeature += 1
             # scope
             correct_scope = ""
             if testcase['scope']:
@@ -275,6 +317,10 @@ class EvaluatePlanner():
                         self.nb_correct_scope += 1
                     else:
                         self.nb_incorrect_scope += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_scope = False
+                    self.nb_incorrect_scope += 1
             # error
             _is_error = isinstance(detected_messages, utils.ParsingException)
             if _is_error:
@@ -362,6 +408,10 @@ class EvaluatePlanner():
                         self.nb_correct_layerandfeature += 1
                     else:
                         self.nb_incorrect_layerandfeature += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_layerandfeature = False
+                    self.nb_incorrect_layerandfeature += 1
             # scope
             correct_scope = ""
             if testcase['scope']:
@@ -375,10 +425,15 @@ class EvaluatePlanner():
                         self.nb_correct_scope += 1
                     else:
                         self.nb_incorrect_scope += 1
+                else:
+                    # if it wasn't set, mark it as false
+                    correct_scope = False
+                    self.nb_incorrect_scope += 1
             # error
             _is_error = isinstance(detected_messages, utils.ParsingException)
             if _is_error:
                 str_predicted_results = detected_messages.message
+                dag_is_valid, nb_unused_funcs = "", ""
             else:
                 # extract only the functions from the act/observe response
                 detected = utils.get_toolcalls_from_messages(detected_messages)
@@ -435,6 +490,9 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--client", type=str)
     parser.add_argument("--mode", type=str, nargs='?', default='planner')
+    parser.add_argument("--hugginggpt", action='store_true')
+    parser.add_argument("--parampred", action='store_true')
+    parser.add_argument("--thoughts", action='store_true')
     args = parser.parse_args()
 
     filenames = os.listdir(os.path.join(os.getcwd(), 'testfiles'))
@@ -442,4 +500,5 @@ if __name__ == "__main__":
     client = args.client
     if not client is None and client in CLIENTMODELS:
         # do a specific client
-        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames, mode=args.mode).evaluate()
+        EvaluatePlanner(client=client, model=CLIENTMODELS[client], filenames=filenames,
+                        mode=args.mode, huggingGPT=args.hugginggpt, param_pred=args.parampred, add_thoughts=args.thoughts).evaluate()
