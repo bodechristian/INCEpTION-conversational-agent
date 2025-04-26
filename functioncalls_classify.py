@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from mock_annotation_tool import MockAnnotationTool
+import utils
 
 load_dotenv()
 
@@ -17,10 +18,12 @@ GROQ_API_KEY = os.environ['GROQ_API_KEY']
 
 
 class AgentfunctionsClassify:
-    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_getstate) -> None:
+    def __init__(self, softwareenv: MockAnnotationTool, callback_llm, callback_llm_with_format, callback_getstate, is_ollama) -> None:
         self.softwareenv = softwareenv
         self.callback_llm = callback_llm
+        self.callback_llm_with_format = callback_llm_with_format
         self.callback_getstate = callback_getstate
+        self.is_ollama = is_ollama
 
         self.valid_functions = {
             "classify_span1": self.classify_span1,
@@ -61,6 +64,11 @@ class AgentfunctionsClassify:
         for text in text_chunks:
             return_result = self.callback_llm(get_system_prompt_classify(criteria_query), text)
 
+            if isinstance(return_result, utils.ParsingException):
+                print(return_result)
+                continue
+
+            return_result = utils.parse_deepseek_response(return_result)
             # hacky fix for \r\n\r\n -> \n\n problem
             # maybe will break other documents that dont use \r\n
             return_result = re.sub(
@@ -87,11 +95,11 @@ class AgentfunctionsClassify:
                     found_spans.append((m.group(1), (true_start, true_start + len(m.group(2)))))
                 else:  # index is incorrect
                     # check if the text is mentioned somewhere
-                    if re.search(m.group(2), documenttext) is None:
+                    if re.search(re.escape(m.group(2)), documenttext) is None:
                         # if none exist just continue
                         continue
                     # find all text mentions
-                    matches = re.finditer(m.group(2), documenttext)
+                    matches = re.finditer(re.escape(m.group(2)), documenttext)
                     # check if match was found
                     if matches:
                         # use match that has closest index
@@ -104,6 +112,7 @@ class AgentfunctionsClassify:
 
         # safety test, applying start:end onto the initial text
         found_words = [(documenttext[s:e], s, e) for _, (s, e) in found_spans]
+        self.callback_getstate()['annotation_positions'] = found_words
         logger.debug(
             "Found these words in the text: %s\n--------------------------------\n", found_words)
         return found_spans
@@ -193,7 +202,7 @@ class AgentfunctionsClassify:
         tuple element is the categorization, second is start and end index of the classified text.
         Returns the annotation positions.
         """
-        systemprompt = """Your job is to identify spans in the text that satisfy this query: {criteria_query}.
+        systemprompt = f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
 Return a list of all the identified spans in the given JSON format where span is the exact text as found in the document. Only reply with the JSON.
 
 Example 1:
@@ -202,6 +211,8 @@ Input:
     Duke asked Lulu to tell him a story about cats and dogs living together in harmony.
 
 Output:
+{{
+    "spans":
     [{{
         "span": "cats",
         "categorization": "animal",
@@ -212,6 +223,7 @@ Output:
         "categorization": "animal",
         "reason": "A dog is an animal"
     }}]
+}}
 
 Example 2:
 Input:
@@ -219,6 +231,8 @@ Input:
     There is a saying that an apple a day keeps the doctor away. But I much prefer peaches or bananas.
 
 Output:
+{{
+    "spans":
     [{{
         "span": "apple",
         "categorization": "food",
@@ -234,6 +248,7 @@ Output:
         "categorization": "food",
         "reason": "A banana is a type of food"
     }}]
+}}
 """
         # get text from doc/cas
         if scope == "current document":
@@ -256,20 +271,29 @@ Output:
 
         for text in text_chunks:
             spans = []
-            return_result = self.callback_llm(systemprompt, text)
-            try:
-                return_result_json = json.loads(return_result)
-                if isinstance(return_result_json, list):
-                    for s in return_result_json:
-                        spans.append(JSON_schema_unit_classify_span_exactwordcheck2.model_validate(s))
-                else:
-                    raise Exception
-            except:
-                print("couldnt load json")
+            if self.is_ollama:
+                return_result = self.callback_llm_with_format(
+                    systemprompt, text, JSON_schema_unit_classify_span_exactwordcheck2)
+                try:
+                    spans = return_result.spans
+                except:
+                    print("couldnt load json")
+            else:  # openai API, no json schema
+                try:
+                    return_result = self.callback_llm(systemprompt, text)
+                    return_result = utils.parse_deepseek_response(return_result)
+                    return_result_json = json.loads(return_result)
+                    if isinstance(return_result_json, list):
+                        for s in return_result_json:
+                            spans.append(JSON_schema_unit_classify_span_exactwordcheck2.model_validate(s))
+                    else:
+                        raise Exception
+                except:
+                    print("couldnt load json")
 
             # iterate over the found spans and locate their index position
             for el in spans:
-                all_finds = re.finditer(el.span, text)
+                all_finds = re.finditer(re.escape(el.span), text)
                 for find in all_finds:
                     start = find.start() + cnt_docs
                     found_spans.append((el.categorization, (start, start+len(el.span))))
@@ -277,7 +301,11 @@ Output:
         return found_spans
 
 
-class JSON_schema_unit_classify_span_exactwordcheck2(BaseModel):
+class JSON_schema_unit_classify_span_exactwordcheck2_unit(BaseModel):
     span: str
     categorization: str
     reason: str
+
+
+class JSON_schema_unit_classify_span_exactwordcheck2(BaseModel):
+    spans: list[JSON_schema_unit_classify_span_exactwordcheck2_unit]
