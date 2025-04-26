@@ -72,7 +72,7 @@ testcases:
     layer: Politicians
     feature: Name
 
-  - prompt: Annotate all Politicians as named entities and assign the label POLITICIAN.
+  - prompt: Annotate all Politicians and assign the label POLITICIAN.
     expectations:
       root:
         - get_scope

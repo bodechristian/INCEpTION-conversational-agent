@@ -130,6 +130,7 @@ testcases:
     scope: current document
     layer: Animal
     feature: Species
+    label: cat
 
   - prompt: Summarize the text
     expectations:
