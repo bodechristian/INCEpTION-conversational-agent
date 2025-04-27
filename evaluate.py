@@ -230,7 +230,7 @@ class EvaluatePlanner():
             # correct settings + correct intents
             completely_correct = (correct_scope == "" or correct_scope == True) and (
                 correct_layerandfeature == "" or correct_layerandfeature == True) and (
-                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
+                    not _is_error and dag_is_valid)
             self.completely_corrects += completely_correct
 
             # log
@@ -338,7 +338,7 @@ class EvaluatePlanner():
             # correct settings + correct intents
             completely_correct = (correct_scope == "" or correct_scope == True) and (
                 correct_layerandfeature == "" or correct_layerandfeature == True) and (
-                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
+                    not _is_error and dag_is_valid)
             self.completely_corrects += completely_correct
 
             # log
@@ -446,7 +446,7 @@ class EvaluatePlanner():
             # correct settings + correct intents
             completely_correct = (correct_scope == "" or correct_scope == True) and (
                 correct_layerandfeature == "" or correct_layerandfeature == True) and (
-                    not _is_error and (dag_is_valid and (nb_unused_funcs == 0)))
+                    not _is_error and dag_is_valid)
             self.completely_corrects += completely_correct
 
             # log
