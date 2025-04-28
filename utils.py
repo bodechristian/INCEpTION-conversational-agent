@@ -1,7 +1,9 @@
 import re
 import logging
-from collections import defaultdict
+import json
 
+from collections import defaultdict
+from function_schema import get_function_schema
 from os import listdir, getcwd
 from os.path import join
 
@@ -71,7 +73,7 @@ def load_dag(dag: dict) -> dict:
     return dag
 
 
-def create_children_dict(dag: dict[str, list[str]]):
+def create_parent_dict(dag: dict[str, list[str]]):
     """returns a dictionary where the keys are the nodes and the values are the list of their children
     input:
     {
@@ -114,7 +116,7 @@ def eval_functions_dag(functions: list[str], dag: dict[str, list[str]]):
         respond: []
     }"""
     current_nodes = dag["root"]
-    dict_children = create_children_dict(dag)
+    dict_children = create_parent_dict(dag)
     nb_unused_funcs = 0
     for func in functions:
         if not func in current_nodes or dict_children[func] != []:
@@ -195,6 +197,21 @@ def detect_functions_compound(funcs_compound):
     }
 
     return [func for funcs_atomic in funcs_compound for func in compound_map[funcs_atomic]]
+
+
+def create_tools_schema(lst_of_functions: list[callable]):
+    """Turns list of functions into a json schema that can be passed to tools= api field for function calling
+    E.g., get list of functions from prototype like this:
+        ag = Agent(mode="sequential", toolcalling_functions=True)
+        lst_of_functions = ag.functionclass.valid_functions.values()"""
+    schema = [
+        {
+            "type": "function",
+            "function": get_function_schema(f)
+        }
+        for f in lst_of_functions]
+    # print(json.dumps(schema, indent=2))
+    return schema
 
 
 class ParsingException:
