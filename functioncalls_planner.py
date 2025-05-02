@@ -108,7 +108,11 @@ class Agentfunctions():
                 annos.append((text, metadata['text']))
 
         # TODO: cap the length of this and do multiple LLM calls
-        annos_string = "\n\n".join([f"{i+1}: {text}\ncontext: {context}" for i, (context, text) in enumerate(annos)])
+        if annos:
+            annos_string = "\n\n".join([f"{i+1}: {text}\ncontext: {context}" for i,
+                                       (context, text) in enumerate(annos)])
+        else:
+            annos_string = "There are currently no annotations on this layer."
         logger.debug(get_system_prompt_verify_annos(annos_string))
         return_result = self.callback_llm(get_system_prompt_verify_annos(annos_string), user_query)
         return return_result

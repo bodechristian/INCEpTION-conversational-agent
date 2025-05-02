@@ -49,7 +49,7 @@ There are several FUNCTIONS you can call to help you answer the user's query:
 
 {functions_string}
 
-Answer as a list with the following JSON format:
+Respond only in JSON with the following JSON format:
 {{
     "plan": [
         {{"task": functionname, "id": task_id, "dep": [dependency_task_ids],
@@ -80,6 +80,8 @@ Output:
 "args": {{"layer_and_feature":"<resource>-2", "scope":"<resource>-0", "annotation_positions":"<resource>-1"}}}},{{"task": "respond", "id": 4, "dep": [-1],
 "args": {{"original_query":"Annotate every animal as such", "context":"I Annotated every animal"}}}}]}}
 ```
+
+Respond only in JSON.
 """
 
 
@@ -129,7 +131,8 @@ def get_system_prompt_classify(criteria_query):
     return f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
 Wrap each identified span into a tag, where you describe the criteria. Such as <animal>dog</animal>.
 Respond only with the given text and their embedded tags. Dont write anything that isn't in the text.
-Pay special attention to using the same whitespace and newline characters as the input.
+Pay special attention to using the same whitespace and newline characters as the input. 
+If you think, think concisely!
 
 Example 1:
 Input:

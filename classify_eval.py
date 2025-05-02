@@ -61,66 +61,56 @@ def compare(res, gold):
 def eval_funcs():
     log = []
     for client, model, method, chunksize in [
-        # ('groq', 'llama-3.3-70b-versatile', 'classify1', 1000),
-        # ('groq', 'llama-3.2-3b-preview', 'classify1', 1000),
-        # ('groq', 'llama-3.2-3b-preview', 'classify1', 2000),
-        # ('groq', 'llama-3.2-3b-preview', 'classify1', 5000),
-        # ('groq', 'llama-3.2-3b-preview', 'classify1', 10000),
-        # ('groq', 'llama-3.2-3b-preview', 'classify1', 20000),
-
-        # ('groq', 'qwen-qwq-32b', 'exact', 0),
-        # ('groq', 'qwen-qwq-32b', 'embed', 0),
-        # ('ukp', 'qwen2.5:32b', 'exact', 0),
-        ('ukp', 'qwen2.5:32b', 'embed', 0),
-
-        # ('openai', 'gpt-4o', 'embed', 0),
+        # ('groq', 'llama-3.3-70b-versatile', 'embed', 1000),
+        # ('groq', 'llama-3.3-70b-versatile', 'embed', 2000),
+        # ('groq', 'llama-3.3-70b-versatile', 'embed', 5000),
+        # ('groq', 'llama-3.3-70b-versatile', 'embed', 10000),
         # ('groq', 'llama-3.3-70b-versatile', 'embed', 20000),
-        # ('groq', 'llama-3.1-8b-instant', 'embed', 20000),
+
+        ('groq', 'qwen-qwq-32b', 'exact', 20000),
     ]:
-        chunksizes = [500, 1000, 3000, 5000, 10000, 20000]
-        for chunksize in chunksizes:
-            print(f"starting with {client=}, {model=}, {method=}, {chunksize=}")
-            for prompt, filename, goldannos in dataset:
-                print(f"doing {prompt}")
-                # clear loggers
-                l = logging.getLogger('functions')
-                l.handlers.clear()
-                l = logging.getLogger('output')
-                l.handlers.clear()
+        print(f"starting with {client=}, {model=}, {method=}, {chunksize=}")
+        for prompt, filename, goldannos in dataset:
+            print(f"doing {prompt}")
+            # clear loggers
+            l = logging.getLogger('functions')
+            l.handlers.clear()
+            l = logging.getLogger('output')
+            l.handlers.clear()
 
-                # create agent
-                agent = Agent(mode='planner', client=client, model=model,
-                              debug=False, test_classify=True, huggingGPT=True)
-                agent.softwareenv.set_current_document_by_name(filename)
-                methods = {
-                    "embed": agent.functionclass_classify.classify_span1,
-                    "embed_noICL": agent.functionclass_classify.classify_span_no_icl,
-                    "exact": agent.functionclass_classify.classify_span_exactwordcheck2,
-                }
+            # create agent
+            agent = Agent(mode='planner', client=client, model=model,
+                          debug=False, test_classify=True, huggingGPT=True)
+            agent.softwareenv.set_current_document_by_name(filename)
+            methods = {
+                "embed": agent.functionclass_classify.classify_span1,
+                "embed_noICL": agent.functionclass_classify.classify_span_no_icl,
+                "exact": agent.functionclass_classify.classify_span_exactwordcheck2,
+            }
 
-                # call function
-                start_time = time.time()
-                result = methods[method](criteria_query=prompt, scope='current document', chunk_size=chunksize)
-                duration = time.time() - start_time
-                precision, recall = compare(result, goldannos)
+            # call function
+            start_time = time.time()
+            result = methods[method](criteria_query=prompt, scope='current document', chunk_size=chunksize)
+            duration = time.time() - start_time
+            precision, recall = compare(result, goldannos)
 
-                found_words = [(agent.softwareenv.get_current_documenttext()[s:e], cat, s, e) for cat, (s, e) in result]
+            found_words = [(agent.softwareenv.get_current_documenttext()[s:e], cat, s, e) for cat, (s, e) in result]
 
-                log.append({
-                    "prompt": prompt,
-                    "function": method,
-                    "chunk_size": chunksize,
-                    "client": client,
-                    "model": model,
-                    "nb_annotations_made": len(result),
-                    "precision": precision,
-                    "recall": recall,
-                    "duration": duration,
-                    "tokens_prompt": agent.nb_tokens_prompt,
-                    "tokens_completion": agent.nb_tokens_completion,
-                    "nb_api_calls": agent.nb_api_calls,
-                    "annotations made": found_words,
-                })
+            log.append({
+                "prompt": prompt,
+                "function": method,
+                "chunk_size": chunksize,
+                "client": client,
+                "model": model,
+                "nb_annotations_made": len(result),
+                "precision": precision,
+                "recall": recall,
+                "duration": duration,
+                "tokens_prompt": agent.nb_tokens_prompt,
+                "tokens_completion": agent.nb_tokens_completion,
+                "nb_api_calls": agent.nb_api_calls,
+                "annotations made": found_words,
+            })
 
     # Convert and write JSON object to file
     with open(os.path.join("test_logs_classify", f"{time.strftime("%Y%m%d-%H%M%S")}.json"), "w") as outfile:
@@ -129,48 +119,3 @@ def eval_funcs():
 
 if __name__ == "__main__":
     eval_funcs()
-
-    # agent = Agent(mode='planner', client='ukp', model='qwen2.5:32b', debug=True, test_classify=True)
-    # agent.softwareenv.set_current_document_by_name(dataset[1][1])
-    # agent.functionclass.highlight(scope='current document', text_to_highlight=dataset[1][2])
-
-    # import re
-    # txt = agent.softwareenv.get_current_documenttext()
-    # lst = []
-    # words = set([w for w, (_, _) in dataset[1][2]])
-    # for word in words:
-    #     matches = re.finditer(word, txt)
-    #     for m in matches:
-    #         lst.append((word, m.span()))
-    # print(sorted(lst, key=lambda x: x[1][0]))
-
-    # lst = agent.functionclass_classify.classify_span1(
-    #     criteria_query="every animal", scope='current document', chunk_size=800)
-    # print(lst)
-
-    # single_data = [
-    #     [
-    #         "cat",
-    #         "animal",
-    #         53,
-    #         56
-    #     ],
-    #     [
-    #         "animal",
-    #         "animal",
-    #         78,
-    #         84
-    #     ],
-    #     [
-    #         "cat",
-    #         "animal",
-    #         4533,
-    #         4536
-    #     ],
-    #     [
-    #         "cheetah",
-    #         "animal",
-    #         4829,
-    #         4836
-    #     ]
-    # ]

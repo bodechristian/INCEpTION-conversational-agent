@@ -28,7 +28,7 @@ CLIENTMODELS = {
     "cerebras": "llama3.1-8b",  # llama3.1-8b, llama3.3-70b
     "groq": "llama3-70b-8192",  # llama3-70b-8192, gemma2-9b-it
     # deepseek-r1:70b, llama3.2, phi4:latest, llama3.3, command-r7b, dolphin3:latest, qwen2.5:32b, llama3.2:3b-instruct-q4_K_M
-    "ukp": "qwen2.5:32b",
+    "ukp": "qwen2.5:14b",
     "openai": "gpt-4o",
     "ollama": "llama3.2:latest",
     "deepseek": "deepseek-chat",
@@ -88,15 +88,10 @@ class Agent():
         self.softwareenv = MockAnnotationTool()
 
         self.set_client(client)
-        self.set_toolcalling_functions(mode=mode, toolcalling=toolcalling_functions)
+        self.set_functionclass(mode=mode, toolcalling=toolcalling_functions)
         if test_classify:
             self.functionclass_classify = AgentfunctionsClassify(
                 self.softwareenv, self.call_llm, self.call_llm_with_format, self.get_state, is_ollama=self.is_ollama)
-        # toolcalling method uses this for tool-calls, as non-finetuned models often return invalid reponses
-        self.client_toolcalling = Cerebras(
-            api_key=os.environ['CEREBRAS_API_KEY'],
-        )
-        self.model_toolcalling = "llama3.3-70b"  # discontinued, potentially use llama-3.3-70b-versatile
 
     def initialize_loggers(self, debug):
         # creating logger
@@ -155,7 +150,7 @@ class Agent():
                 api_key=os.environ['OPENAI_API_KEY']
             )
 
-    def set_toolcalling_functions(self, mode, toolcalling):
+    def set_functionclass(self, mode, toolcalling):
         self.mode = mode
         self.toolcalling_functions = toolcalling
         if self.mode == 'sequential':
@@ -226,6 +221,7 @@ class Agent():
                     ],
                     model=self.model,
                     temperature=0.0,
+                    max_tokens=80000,
                 )
                 # count api calls and tokens
                 self.nb_api_calls += 1
@@ -686,7 +682,7 @@ if __name__ == "__main__":
         agent.nb_api_calls = 0
         # agent.nb_tokens = 0
         # call tool funtions
-        agent.set_toolcalling_functions(mode='sequential', toolcalling=False)
+        agent.set_functionclass(mode='sequential', toolcalling=False)
         agent.direct(args.compare)
         agent.logger.info(f"API calls: {agent.nb_api_calls},")  # total amount of tokens: {agent.nb_tokens}")
     else:

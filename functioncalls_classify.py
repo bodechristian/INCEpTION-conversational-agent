@@ -204,6 +204,7 @@ class AgentfunctionsClassify:
         """
         systemprompt = f"""Your job is to identify spans in the text that satisfy this query: {criteria_query}.
 Return a list of all the identified spans in the given JSON format where span is the exact text as found in the document. Only reply with the JSON.
+If you think, think concisely! Think VERY concisely and not too long!
 
 Example 1:
 Input:
@@ -283,11 +284,7 @@ Output:
                     return_result = self.callback_llm(systemprompt, text)
                     return_result = utils.parse_deepseek_response(return_result)
                     return_result_json = json.loads(return_result)
-                    if isinstance(return_result_json, list):
-                        for s in return_result_json:
-                            spans.append(JSON_schema_unit_classify_span_exactwordcheck2.model_validate(s))
-                    else:
-                        raise Exception
+                    spans = JSON_schema_unit_classify_span_exactwordcheck2.model_validate(return_result_json).spans
                 except:
                     print("couldnt load json")
 
