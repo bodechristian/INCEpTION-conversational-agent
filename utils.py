@@ -61,7 +61,7 @@ def load_dag(dag: dict) -> dict:
         get_layer_and_feature: ['annotate'],
         classify_span: ['annotate'],
         annotate: ['respond'],
-        respond: []
+        respond: [<END>]
     }"""
     # tasks in values that are not present as a key only have incoming edges
     # still create an edge for them to an empty list
@@ -70,6 +70,9 @@ def load_dag(dag: dict) -> dict:
     for task in set(tasks):
         if not task in dag.keys():
             dag[task] = []
+    for k, v in dag.items():
+        if v == []:
+            dag[k] = ["<END>"]
     return dag
 
 
@@ -82,7 +85,7 @@ def create_parent_dict(dag: dict[str, list[str]]):
         getlayer: [annotate],
         classify: [annotate],
         annotate: [respond],
-        respond: []
+        respond: [<END>]
     }
     output:
     {
@@ -90,7 +93,8 @@ def create_parent_dict(dag: dict[str, list[str]]):
         'get_layer': [], 
         'classify': ['get_scope'], 
         'annotate': ['get_layer', 'classify'], 
-        'respond': ['annotate']
+        'respond': ['annotate'],
+        '<END>': ['respond']
     }"""
     result_dict = defaultdict(list)
     for k, v in dag.items():
@@ -113,22 +117,21 @@ def eval_functions_dag(functions: list[str], dag: dict[str, list[str]]):
         getlayer: [annotate],
         classify: [annotate],
         annotate: [respond],
-        respond: []
+        respond: [<END>]
     }"""
-    current_nodes = dag["root"]
-    dict_children = create_parent_dict(dag)
+    dict_parents = create_parent_dict(dag)
     nb_unused_funcs = 0
     for func in functions:
-        if not func in current_nodes or dict_children[func] != []:
-            # function was "unnecessary", did not move pointer further along in dag
+        # node still has parents
+        if dict_parents[func] != []:
+            # function was "unnecessary", did not remove a node
             nb_unused_funcs += 1
+        # node does not have parents
         else:
-            # function moved pointer further ahead
-            current_nodes = [el for el in current_nodes if el != func]  # remove all funcs
-            current_nodes.extend(dag[func])
+            # function executed, node removed
             for new_leaf_node in dag[func]:
-                dict_children[new_leaf_node].remove(func)
-    is_valid = (current_nodes == [])
+                dict_parents[new_leaf_node].remove(func)
+    is_valid = all([parents == [] for parents in dict_parents.values()])
     return is_valid, nb_unused_funcs
 
 
@@ -239,6 +242,14 @@ if __name__ == "__main__":
     # print(d)
     print(eval_functions_dag(dag=d, functions=["get_scope",
           "classify_span",  "annotate",  "get_layer_and_feature", "annotate", "respond"]))
+    print(eval_functions_dag(dag=d, functions=["get_layer_and_feature", "get_scope",
+          "classify_span",  "annotate",  "respond"]))
+    print(eval_functions_dag(dag=d, functions=["get_scope",
+          "classify_span",  "annotate",  "get_layer_and_feature", "respond"]))
+    print(eval_functions_dag(dag=d, functions=["get_scope",
+          "classify_span",  "get_layer_and_feature", "annotate", "respond"]))
+    print(eval_functions_dag(dag=d, functions=["get_scope",
+          "classify_span",  "get_layer_and_feature", "annotate"]))
     # print(flatten_dag(d))
 
     # lst = ["classify_span", "annotate", "respond"]
